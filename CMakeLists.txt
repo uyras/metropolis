@@ -12,7 +12,7 @@ find_package(Argumentum CONFIG REQUIRED )
 include_directories("../partsEngine")
 link_directories("../partsEngine")
 
-add_executable(metropolis main.cpp)
+add_executable(metropolis main.cpp CorrelationCore.cpp)
 target_link_libraries(metropolis partsEngine gmp gmpxx OpenMP::OpenMP_CXX Argumentum::argumentum)
 
 add_executable(distanceAnalyser distanceAnalyser.cpp)

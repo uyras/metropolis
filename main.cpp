@@ -11,8 +11,9 @@
 #include "PartArray.h"
 #include "Part.h"
 #include "argumentum/include/argumentum/argparse.h"
+#include "CorrelationCore.h"
 
-#define VERSION "0.0.2"
+#define VERSION "0.0.3"
 
 std::string filename;
 std::vector<double> temperatures; // system temperature
@@ -26,9 +27,9 @@ unsigned N;
 class correlationParameters: public argumentum::CommandOptions
 {
     public:
-    double minRange;
-    double maxRange;
-    unsigned methodVar;
+    std::vector<double> minRange;
+    std::vector<double> maxRange;
+    std::vector<unsigned> methodVar;
 
     correlationParameters():CommandOptions("correlation"){}
     correlationParameters(std::string_view name):
@@ -36,102 +37,31 @@ class correlationParameters: public argumentum::CommandOptions
         {}
 
 
-    std::vector< std::forward_list < Part* > > correlationNeighbours;
-    std::map< std::pair<unsigned, unsigned>, short > correlationValues;
-    unsigned correlationPairsNum;
-    /**
-     * @brief Сaches the neighbours and energies for further calculations
-     * 
-     * @param sys system
-     */
-    void init(const PartArray & sys){
-        correlationNeighbours.resize(sys.size());
-        correlationPairsNum=0;
-
-        double space2;
-        const double minr = this->minRange * this->minRange;
-        const double maxr = this->maxRange * this->maxRange;
-        double eTemp;
-        for (auto partA: sys.parts){
-            for (auto partB: sys.parts){
-                if (partA==partB)
-                    continue;
-                
-                space2 = partA->pos.space_2(partB->pos);
-                if (space2>=minr && space2<=maxr){
-                    correlationNeighbours[partA->Id()].push_front(partB);
-                    ++correlationPairsNum;
-
-                    if (this->methodVar==2 || this->methodVar==3){
-                        if (this->methodVar==2){
-                            //В матрицу надо помещать энергии только в неперевернутых состояниях
-                            eTemp = hamiltonianDipolar(partA,partB)*-1; 
-                            if (partA->state!=partB->state)
-                                eTemp*=-1.;
-                        }
-
-                        if (this->methodVar==3){
-                            eTemp = partA->m.scalar(partB->m); 
-                            if (partA->state!=partB->state)
-                                eTemp*=-1.;
-                        }
-
-
-                        if (eTemp>0)
-                            correlationValues[std::make_pair(partA->Id(),partB->Id())] = 1;
-                        else
-                            correlationValues[std::make_pair(partA->Id(),partB->Id())] = -1;
-                    }
-                }
-            }
-        }
-        correlationPairsNum/=2;
-    }
-
-
-    char method(const Part* partA,const Part* partB){
-        if (this->methodVar==1) return fxor(partA,partB);
-        if (this->methodVar==2) return feSign(partA,partB);
-        if (this->methodVar==3) return fScalar(partA,partB);
-        return 0;
-    }
-    // functions for correlation options
-    char fxor(const Part* partA,const Part* partB){
-        return (partA->state ^ partB->state)?-1:+1;
-    }
-    char feSign(const Part* partA, const Part* partB){
-        return fxor(partA,partB) * 
-            this->correlationValues[std::make_pair(partA->Id(),partB->Id())];
-    }
-    char fScalar(const Part* partA, const Part* partB){
-        return fxor(partA,partB) * 
-            this->correlationValues[std::make_pair(partA->Id(),partB->Id())];
-    }
+    
 
     protected:
     void add_parameters(argumentum::ParameterConfig& params) override
     {
-        params.add_parameter(minRange,"","--minRange").nargs(1).required().metavar("RANGE")
+        params.add_parameter(minRange,"","--minRange").minargs(1).required().metavar("RANGE")
             .help("minimal distance where to calculate the corelation parameter");
-        params.add_parameter(maxRange,"","--maxRange").nargs(1).required().metavar("RANGE")
+        params.add_parameter(maxRange,"","--maxRange").minargs(1).required().metavar("RANGE")
             .help("maximal distance where to calculate the corelation parameter");
         params.add_parameter(methodVar,"","--method")
             .choices({"xor","eSign","scalar"})
             .metavar("xor|eSign|scalar")
-            .nargs(1)
+            .minargs(1)
+            .required()
             .help("set the method of how to calculate the correlation. \
             Possible variants are \"xor\" or \"eSign\" or \"scalar\":\n\
             xor - the initial direction of M for each spin is multiplied by Si={-1;+1}.\
             xor is the production of Si*Sj. At the start of the program all values are +1.\n\
             eSign - here we use Si=H/|H|, where H is hamiltonian. \
             This function is the production of Si*Sj.\n\
-            scalar - just a scalar production of two unit vectors\
-            Default is eSign.")
-            .absent(2)
+            scalar - just a scalar production of two unit vectors.")
             .action([&](auto& target, const std::string& val){
-                if (val=="xor") target = 1;
-                if (val=="eSign") target = 2;
-                if (val=="scalar") target = 3;
+                if (val=="xor") target.push_back(1);
+                if (val=="eSign") target.push_back(2);
+                if (val=="scalar") target.push_back(3);
             });
     }
 };
@@ -189,11 +119,17 @@ int main(int argc, char* argv[])
         return 1;
     }
     f.close();
+    
+    if (cSteps<1){
+        cerr<<"error! --calculate should be greather than 0!"<<endl;
+        return 1;
+    }
 
 
     PartArray bigsys;
-    bigsys.setInteractionRange(iRange);
     bigsys.load(filename.c_str());
+    bigsys.state.hardReset();
+    bigsys.setInteractionRange(iRange);
     N=bigsys.size();
     if (dbg){
         cerr<<"# file '"<<filename<<"': imported "<<bigsys.size()<<" parts"<<endl;
@@ -202,49 +138,73 @@ int main(int argc, char* argv[])
 
 
 
-    ///////// define neighbours for correlation parameter
     if (correlationOptions){
-        correlationOptions->init(bigsys);
-        if (correlationOptions->correlationPairsNum==0){
-            cerr<<"Check the correlation range. \
-                Could not find any spin pairs within this distance!"<<endl;
-            return 1;
-        }
+        if (correlationOptions->maxRange.size() != correlationOptions->minRange.size() ||
+            correlationOptions->maxRange.size() != correlationOptions->methodVar.size()){
+                cerr<<"Parameters --minRange, --maxRange and --method should \
+                have the same values count."<<endl;
+                return 1;
+            }
     }
 
-
-
-
+    //obtain the avaliable number of threads
+    int threadCount = 0;
     #pragma omp parallel
     {
         #pragma omp single
         {
-            printf("# Metropolis algorithm for calculating heating capacity v%s\n",VERSION);
-            printf("#  filename: %s\n",filename.c_str());
-            printf("#    System: %d spins, %f interaction range\n",N,iRange);
-            printf("#        MC: %u heatup, %u compute steps\n",hSteps,cSteps);
-            printf("#   threads: %d\n",omp_get_num_threads());
-
-            if (correlationOptions){
-                printf("#   correl.: %f min range, %f max range, %f avg. neighbours\n",
-                    correlationOptions->minRange, correlationOptions->maxRange, 
-                    double(correlationOptions->correlationPairsNum)/N*2);
-                if (correlationOptions->methodVar==1)
-                    printf("#    method: XOR\n");
-                if (correlationOptions->methodVar==2)
-                    printf("#    method: E/|E|\n");
-                if (correlationOptions->methodVar==3)
-                    printf("#    method: scalar\n");
-            }
-
-            printf("# T C(T)/N <E> <E^2> <mx> <mx^2> <my> <my^2> threadId seed");
-            if (correlationOptions) printf(" <cp> <cp^2>");
-            printf("\n");
-            fflush(stdout);
+            threadCount = omp_get_num_threads();
         }
+    }
 
+    printf("# Metropolis algorithm for calculating heating capacity v%s\n",VERSION);
+    printf("#  filename: %s\n",filename.c_str());
+    printf("#    System: %d spins, %f interaction range\n",N,iRange);
+    printf("#        MC: %u heatup, %u compute steps\n",hSteps,cSteps);
+    printf("#   threads: %d\n",threadCount);
+
+    if (correlationOptions){
+        printf("#   correl.: %d cores\n",correlationOptions->minRange.size());
+    
+        for (int i=0; i<correlationOptions->minRange.size(); ++i){
+            CorrelationCore cctemp(
+                correlationOptions->minRange[i], 
+                correlationOptions->maxRange[i],
+                correlationOptions->methodVar[i]);
+            cctemp.init(bigsys);
+            if (cctemp.correlationPairsNum==0){
+                cerr<<"Check the correlation range #"<<i<<". \
+                    Could not find any spin pairs within this distance!"<<endl;
+                return 1;
+            }
+            printf("# core #%03d: %.2f min range, %.2f max range, %.2f avg. neigh",i,
+                correlationOptions->minRange[i], correlationOptions->maxRange[i],
+                cctemp.correlationPairsNum/double(N));
+            if (correlationOptions->methodVar[i]==1)
+                printf(" method: XOR\n");
+            if (correlationOptions->methodVar[i]==2)
+                printf(" method: E/|E|\n");
+            if (correlationOptions->methodVar[i]==3)
+                printf(" method: scalar\n");
+        }
+    }
+
+    printf("# T C(T)/N <E> <E^2> <mx> <mx^2> <my> <my^2> threadId seed");
+    if (correlationOptions)
+        for (int i=0; i<correlationOptions->minRange.size(); ++i) 
+            printf(" <cp#%03d> <cp^2#%03d>",i,i);
+    printf("\n");
+    fflush(stdout);
+
+
+
+    #pragma omp parallel
+    {        
         #pragma omp for
         for (int tt=0; tt<temperatures.size();  ++tt){
+
+            std::vector<CorrelationCore> correlationCores;
+
             const double t = temperatures[tt];
             const unsigned trseed = rseed+tt;
             default_random_engine generator;
@@ -259,12 +219,19 @@ int main(int argc, char* argv[])
             mpf_class mx2(0,2048);
             mpf_class my2(0,2048);
             mpf_class e2(0,2048);
-            mpf_class cp(0,2048);
-            mpf_class cp2(0,2048);
 
             PartArray sys = bigsys;
 
-            //sys.state.reset();
+            ///////// define neighbours for correlation parameter
+            if (correlationOptions){
+                for (int i=0; i<correlationOptions->maxRange.size(); ++i){
+                    correlationCores.push_back(CorrelationCore(correlationOptions->minRange[i],
+                                                                correlationOptions->maxRange[i],
+                                                                correlationOptions->methodVar[i]));
+                    correlationCores[i].init(sys);
+                    correlationCores[i].dbg = dbg;
+                }
+            }
 
             bool swapRes;
             unsigned swapNum;
@@ -274,7 +241,6 @@ int main(int argc, char* argv[])
 
             double mxOld;
             double myOld;
-            long cpOld;
 
             for (unsigned step=0; step<hSteps; ++step){
                 for (unsigned sstep=0; sstep<sys.size(); ++sstep){
@@ -294,20 +260,12 @@ int main(int argc, char* argv[])
 
             mxOld = sys.M().x;
             myOld = sys.M().y;
-            cpOld=0;
-            if (correlationOptions){
-                for (auto partA:sys.parts){
-                    if (dbg) fprintf(stderr,"# neigh for %u: ",partA->Id());
-                    for (auto partB:correlationOptions->correlationNeighbours[partA->Id()]){
-                        cpOld += correlationOptions->method(partA,partB);
-                        if (dbg) fprintf(stderr,"%u,",partB->Id());
-                    }
-                    if (dbg) fprintf(stderr,"\n");
+
+            for (auto &cc: correlationCores){
+                cc.cpOld = cc.getCPFull(sys);
+                if (dbg){
+                    cout<<"cpOld: "<<cc.cpOld<<endl;
                 }
-                cpOld /= 2;
-            }
-            if (dbg){
-                cout<<"cpOld: "<<cpOld<<endl;
             }
 
             for (unsigned step=0; step<cSteps; ++step){
@@ -321,10 +279,11 @@ int main(int argc, char* argv[])
                         eOld = sys.E();
                         mxOld += 2 * (sys.parts[swapNum]->m.x);
                         myOld += 2 * (sys.parts[swapNum]->m.y);
-                        if (correlationOptions){
-                            Part* partA = sys.parts[swapNum];
-                            for (auto partB:correlationOptions->correlationNeighbours[swapNum]){
-                                cpOld += (correlationOptions->method(partA,partB));
+
+                        Part* partA = sys.parts[swapNum];
+                        for (auto &cc: correlationCores){
+                            for (auto partB:cc.correlationNeighbours[swapNum]){
+                                cc.cpOld += (cc.method(partA,partB));
                             }
                         }
                     } else {
@@ -336,9 +295,9 @@ int main(int argc, char* argv[])
                     e2 += eOld*eOld;
                     mx2 += mxOld*mxOld;
                     my2 += myOld*myOld;
-                    if (correlationOptions){
-                        cp += double(cpOld) / correlationOptions->correlationPairsNum;
-                        cp2 += (double(cpOld*cpOld) / (correlationOptions->correlationPairsNum*correlationOptions->correlationPairsNum));
+                    for (auto &cc: correlationCores){
+                        cc.cp += double(cc.cpOld) / cc.correlationPairsNum;
+                        cc.cp2 += (double(cc.cpOld*cc.cpOld) / (cc.correlationPairsNum * cc.correlationPairsNum));
                     }
                 }
             }
@@ -349,8 +308,10 @@ int main(int argc, char* argv[])
             my2 /= cSteps*N;
             e /= cSteps*N;
             e2 /= cSteps*N;
-            cp /= cSteps*N;
-            cp2 /= cSteps*N;
+            for (auto &cc: correlationCores){
+                cc.cp /= cSteps*N;
+                cc.cp2 /= cSteps*N;
+            }
             mpf_class cT = (e2 - (e * e))/(t * t * sys.size());
 
             #pragma omp critical
@@ -359,12 +320,15 @@ int main(int argc, char* argv[])
                     t, cT.get_d(), e.get_d(), e2.get_d(), 
                     mx.get_d(), mx2.get_d(), my.get_d(), my2.get_d(),
                     omp_get_thread_num(), trseed);
-                if (correlationOptions) printf(" %e %e",cp.get_d(),cp2.get_d());
+                for (auto &cc: correlationCores) 
+                    printf(" %e %e",cc.cp.get_d(),cc.cp2.get_d());
                 printf("\n");
                 fflush(stdout);
             }
         }
+        
 
     }
+    
 
 }
