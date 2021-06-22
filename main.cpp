@@ -10,7 +10,7 @@
 #include <omp.h>
 #include "PartArray.h"
 #include "Part.h"
-#include "argumentum/include/argumentum/argparse.h"
+#include <argumentum/argparse.h>
 #include "CorrelationCore.h"
 
 #define VERSION "0.0.3"

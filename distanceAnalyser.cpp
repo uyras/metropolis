@@ -2,7 +2,7 @@
 #include <string>
 #include "PartArray.h"
 #include "Part.h"
-#include "argumentum/include/argumentum/argparse.h"
+#include <argumentum/argparse.h>
 
 using namespace std;
 using namespace argumentum;

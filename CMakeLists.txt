@@ -4,16 +4,24 @@ project(metropolis)
 
 set (CMAKE_CXX_STANDARD 17)
 
-set(CMAKE_PREFIX_PATH ./argumentum ${CMAKE_PREFIX_PATH})
+add_subdirectory(partsEngine)
+add_subdirectory(argumentum-src)
+
+add_custom_target(fix ALL
+	COMMENT "fixing problem with argparse"
+
+	COMMAND ${CMAKE_COMMAND}
+	   -E copy
+	   "${CMAKE_SOURCE_DIR}/argumentum-src/util/faketarget.cpp"
+	   "${CMAKE_SOURCE_DIR}/util/faketarget.cpp"
+)
 
 find_package(OpenMP REQUIRED)
-find_package(Argumentum CONFIG REQUIRED )
 
-include_directories("../partsEngine")
-link_directories("../partsEngine")
+include_directories("partsEngine" "argumentum-src/include")
 
 add_executable(metropolis main.cpp CorrelationCore.cpp)
-target_link_libraries(metropolis partsEngine gmp gmpxx OpenMP::OpenMP_CXX Argumentum::argumentum)
+target_link_libraries(metropolis partsEngine gmp gmpxx OpenMP::OpenMP_CXX argumentum)
 
 add_executable(distanceAnalyser distanceAnalyser.cpp)
-target_link_libraries(distanceAnalyser partsEngine Argumentum::argumentum)
+target_link_libraries(distanceAnalyser partsEngine argumentum)
