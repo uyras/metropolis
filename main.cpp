@@ -159,9 +159,19 @@ int main(int argc, char* argv[])
 
     printf("# Metropolis algorithm for calculating heating capacity v%s\n",VERSION);
     printf("#  filename: %s\n",filename.c_str());
+    printf("#     rseed: %d+<tempNum>\n",rseed);
     printf("#    System: %d spins, %f interaction range\n",N,iRange);
     printf("#        MC: %u heatup, %u compute steps\n",hSteps,cSteps);
     printf("#   threads: %d\n",threadCount);
+    printf("#    temps.: %d pcs. from %e to %e\n",
+        temperatures.size(),
+        std::min_element(temperatures.begin(),temperatures.end()).operator*(),
+        std::max_element(temperatures.begin(),temperatures.end()).operator*());
+    printf("# temp list: %e",temperatures[0]);
+    for (int tt=1; tt<temperatures.size(); ++tt)
+        printf(",%e",temperatures[tt]);
+    printf("\n");
+
 
     if (correlationOptions){
         printf("#   correl.: %d cores\n",correlationOptions->minRange.size());
@@ -250,7 +260,7 @@ int main(int argc, char* argv[])
                     p = exp(dE/t);
                     randNum = doubleDistr(generator);
                     if (dE>0 || (t>0 && randNum <= p)){
-                        //do nothing
+                        eOld = sys.E();
                     } else {
                         sys.parts[swapNum]->rotate(true);
                     }
@@ -258,6 +268,7 @@ int main(int argc, char* argv[])
             }
 
 
+            eOld = sys.E();
             mxOld = sys.M().x;
             myOld = sys.M().y;
 
