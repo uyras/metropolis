@@ -55,37 +55,44 @@ void CorrelationCore::init(const PartArray & sys)
 
 long CorrelationCore::getCPFull(const PartArray & sys)
 {
-    long res = 0;
+    long res = this->cpOld;
+    this->cpOld = 0;
     for (auto partA:sys.parts){
-        if (dbg) fprintf(stderr,"# neigh for %u: ",partA->Id());
-        for (auto partB:this->correlationNeighbours[partA->Id()]){
-            res += this->method(partA,partB);
-            if (dbg) fprintf(stderr,"%u,",partB->Id());
+        if (dbg) {
+            fprintf(stderr,"# neigh for %u: ",partA->Id());
+            for (auto partB:this->correlationNeighbours[partA->Id()]){
+                fprintf(stderr,"%u,",partB->Id());
+            }
+            fprintf(stderr,"\n");
         }
-        if (dbg) fprintf(stderr,"\n");
+
+        this->method(partA);
     }
-    return res/2;
+    std::swap(res,this->cpOld);
+    return res/4;
 }
 
-char CorrelationCore::method(const Part* partA,const Part* partB)
+void CorrelationCore::method(const Part* partA)
 {
-        if (this->_methodVar==1) return fxor(partA,partB);
-        if (this->_methodVar==2) return feSign(partA,partB);
-        if (this->_methodVar==3) return fScalar(partA,partB);
-        return 0;
+    for (auto partB:this->correlationNeighbours[partA->Id()]){
+        if (this->_methodVar==1) this->cpOld += 2*fxor(partA,partB);
+        if (this->_methodVar==2) this->cpOld += 2*feSign(partA,partB);
+        if (this->_methodVar==3) this->cpOld += 2*fScalar(partA,partB);
+    }
 }
-    // functions for correlation options
-    char CorrelationCore::fxor(const Part* partA,const Part* partB)
-    {
-        return (partA->state ^ partB->state)?-1:+1;
-    }
-    char CorrelationCore::feSign(const Part* partA, const Part* partB)
-    {
-        return fxor(partA,partB) * 
-            this->correlationValues[std::make_pair(partA->Id(),partB->Id())];
-    }
-    char CorrelationCore::fScalar(const Part* partA, const Part* partB)
-    {
-        return fxor(partA,partB) * 
-            this->correlationValues[std::make_pair(partA->Id(),partB->Id())];
-    }
+
+// functions for correlation options
+char CorrelationCore::fxor(const Part* partA,const Part* partB)
+{
+    return (partA->state ^ partB->state)?-1:+1;
+}
+char CorrelationCore::feSign(const Part* partA, const Part* partB)
+{
+    return fxor(partA,partB) * 
+        this->correlationValues[std::make_pair(partA->Id(),partB->Id())];
+}
+char CorrelationCore::fScalar(const Part* partA, const Part* partB)
+{
+    return fxor(partA,partB) * 
+        this->correlationValues[std::make_pair(partA->Id(),partB->Id())];
+}

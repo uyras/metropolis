@@ -8,10 +8,13 @@
 #include <bitset>
 #include <gmpxx.h>
 #include <omp.h>
+#include <argumentum/argparse.h>
 #include "PartArray.h"
 #include "Part.h"
-#include <argumentum/argparse.h>
 #include "CorrelationCore.h"
+#include "CorrelationPointCore.h"
+#include "CorrelationParameters.h"
+#include "CorrelationPointParameters.h"
 
 #define VERSION "0.0.3"
 
@@ -23,48 +26,6 @@ unsigned rseed;         // random seed value
 double iRange;          // interaction range
 bool dbg=false;
 unsigned N;
-
-class correlationParameters: public argumentum::CommandOptions
-{
-    public:
-    std::vector<double> minRange;
-    std::vector<double> maxRange;
-    std::vector<unsigned> methodVar;
-
-    correlationParameters():CommandOptions("correlation"){}
-    correlationParameters(std::string_view name):
-        CommandOptions(name)
-        {}
-
-
-    
-
-    protected:
-    void add_parameters(argumentum::ParameterConfig& params) override
-    {
-        params.add_parameter(minRange,"","--minRange").minargs(1).required().metavar("RANGE")
-            .help("minimal distance where to calculate the corelation parameter");
-        params.add_parameter(maxRange,"","--maxRange").minargs(1).required().metavar("RANGE")
-            .help("maximal distance where to calculate the corelation parameter");
-        params.add_parameter(methodVar,"","--method")
-            .choices({"xor","eSign","scalar"})
-            .metavar("xor|eSign|scalar")
-            .minargs(1)
-            .required()
-            .help("set the method of how to calculate the correlation. \
-            Possible variants are \"xor\" or \"eSign\" or \"scalar\":\n\
-            xor - the initial direction of M for each spin is multiplied by Si={-1;+1}.\
-            xor is the production of Si*Sj. At the start of the program all values are +1.\n\
-            eSign - here we use Si=H/|H|, where H is hamiltonian. \
-            This function is the production of Si*Sj.\n\
-            scalar - just a scalar production of two unit vectors.")
-            .action([&](auto& target, const std::string& val){
-                if (val=="xor") target.push_back(1);
-                if (val=="eSign") target.push_back(2);
-                if (val=="scalar") target.push_back(3);
-            });
-    }
-};
 
 using namespace std;
 using namespace argumentum;
@@ -103,15 +64,20 @@ int main(int argc, char* argv[])
         it will be SEED+TEMPNUM, where TEMPNUM is the sequential number \
         of temperature in list. Default is 0.");
 
-    params.add_command<correlationParameters>("correlation").help("Gather also correlation parameter. \
+    params.add_command<CorrelationParameters>("correlation").help("Gather also correlation parameter. \
         This option has additional parameters. For information print: metropolis correlation --help.");
+    params.add_command<CorrelationPointParameters>("corrpoint")
+    .help("Gather also correlation parameter with spins around set of points. \
+        This option has additional parameters. For information print: metropolis corrpoint --help.");
+
 
     auto res = parser.parse_args( argc, argv, 1 );
 
     if ( !res )
       return 1;
 
-    auto correlationOptions = static_pointer_cast<correlationParameters>( res.findCommand("correlation") );
+    auto correlationOptions = static_pointer_cast<CorrelationParameters>( res.findCommand("correlation") );
+    auto correlationPointOptions = static_pointer_cast<CorrelationPointParameters>( res.findCommand("corrpoint") );
     
     ifstream f(filename);
     if (!f.is_open()) {
@@ -142,9 +108,17 @@ int main(int argc, char* argv[])
         if (correlationOptions->maxRange.size() != correlationOptions->minRange.size() ||
             correlationOptions->maxRange.size() != correlationOptions->methodVar.size()){
                 cerr<<"Parameters --minRange, --maxRange and --method should \
-                have the same values count."<<endl;
+                have the same count of values."<<endl;
                 return 1;
-            }
+        }
+    }
+
+    if (correlationPointOptions){
+        if (correlationPointOptions->X.size() != correlationPointOptions->Y.size()){
+                cerr<<"Parameters -X, and -Y should \
+                have the same count of values."<<endl;
+                return 1;
+        }
     }
 
     //obtain the avaliable number of threads
@@ -183,8 +157,8 @@ int main(int argc, char* argv[])
                 correlationOptions->methodVar[i]);
             cctemp.init(bigsys);
             if (cctemp.correlationPairsNum==0){
-                cerr<<"Check the correlation range #"<<i<<". \
-                    Could not find any spin pairs within this distance!"<<endl;
+                cerr<<"Check the correlation range #"<<i<<"."<<endl;
+                cerr<<"Could not find any spin pairs within this distance!"<<endl;
                 return 1;
             }
             printf("# core #%03d: %.2f min range, %.2f max range, %.2f avg. neigh",i,
@@ -199,10 +173,49 @@ int main(int argc, char* argv[])
         }
     }
 
+    if (correlationPointOptions){
+        CorrelationPointCore cpcTemp(
+            correlationPointOptions->X,
+            correlationPointOptions->Y,
+            correlationPointOptions->distance,
+            correlationPointOptions->minRange,
+            correlationPointOptions->maxRange);
+        
+        cpcTemp.init(bigsys);
+        if (cpcTemp.correlationPairsNum==0){
+            cerr<<"Check the correlation point ranges."<<endl;
+            cerr<<"Could not find any spin pairs within this distance!"<<endl;
+            return 1;
+        }
+        printf("# corrPoint: %.2f distance, %.2f min range, %.2f max range\n",
+                correlationPointOptions->distance,
+                correlationPointOptions->minRange, 
+                correlationPointOptions->maxRange);
+        printf("#            %d points, %.2f avg spins per point, %.2f avg. neigh\n",
+                correlationPointOptions->X.size(),
+                cpcTemp.spinsInPoint,
+                cpcTemp.correlationPairsNum/double(N));
+        printf("#    coord.: format is <num:(x,y):spins>, <...>, ...\n# 0:(%f,%f):%d",
+            correlationPointOptions->X[0],
+            correlationPointOptions->Y[0],
+            std::distance(cpcTemp.correlationPointSpins[0].begin(),
+                          cpcTemp.correlationPointSpins[0].end()));
+        for (int i=1; i<correlationPointOptions->X.size(); ++i)
+            printf(", %d:(%f,%f):%d",i,
+                correlationPointOptions->X[i],
+                correlationPointOptions->Y[i],
+                std::distance(cpcTemp.correlationPointSpins[i].begin(),
+                          cpcTemp.correlationPointSpins[i].end()));
+        printf("\n");
+
+    }
+
     printf("# T C(T)/N <E> <E^2> <mx> <mx^2> <my> <my^2> threadId seed");
     if (correlationOptions)
         for (int i=0; i<correlationOptions->minRange.size(); ++i) 
-            printf(" <cp#%03d> <cp^2#%03d>",i,i);
+            printf(" <cc#%03d> <cc^2#%03d>",i,i);
+    if (correlationPointOptions)
+        printf(" <cp> <cc^2>");
     printf("\n");
     fflush(stdout);
 
@@ -214,6 +227,7 @@ int main(int argc, char* argv[])
         for (int tt=0; tt<temperatures.size();  ++tt){
 
             std::vector<CorrelationCore> correlationCores;
+            std::shared_ptr<CorrelationPointCore> correlationPointCore;
 
             const double t = temperatures[tt];
             const unsigned trseed = rseed+tt;
@@ -239,8 +253,21 @@ int main(int argc, char* argv[])
                                                                 correlationOptions->maxRange[i],
                                                                 correlationOptions->methodVar[i]));
                     correlationCores[i].init(sys);
-                    correlationCores[i].dbg = dbg;
+                    //correlationCores[i].dbg = dbg;
                 }
+            }
+
+            ///////// setup correlation point parameter
+            if (correlationPointOptions){
+                correlationPointCore = make_shared<CorrelationPointCore>(
+                    correlationPointOptions->X,
+                    correlationPointOptions->Y,
+                    correlationPointOptions->distance,
+                    correlationPointOptions->minRange,
+                    correlationPointOptions->maxRange);
+                
+                correlationPointCore->init(sys);
+                //correlationPointCore->dbg = dbg;
             }
 
             bool swapRes;
@@ -279,6 +306,10 @@ int main(int argc, char* argv[])
                 }
             }
 
+            if (correlationPointCore){
+                correlationPointCore->cpOld = correlationPointCore->getCPFull(sys);
+            }
+
             for (unsigned step=0; step<cSteps; ++step){
                 for (unsigned sstep=0; sstep<sys.size(); ++sstep){
                     swapNum = intDistr(generator);
@@ -287,14 +318,35 @@ int main(int argc, char* argv[])
                     p = exp(dE/t);
                     randNum = doubleDistr(generator);
                     if (dE>0 || (t>0 && randNum <= p)){
-                        eOld = sys.E();
-                        mxOld += 2 * (sys.parts[swapNum]->m.x);
-                        myOld += 2 * (sys.parts[swapNum]->m.y);
-
                         Part* partA = sys.parts[swapNum];
+                        eOld = sys.E();
+                        mxOld += 2 * (partA->m.x);
+                        myOld += 2 * (partA->m.y);
+
                         for (auto &cc: correlationCores){
-                            for (auto partB:cc.correlationNeighbours[swapNum]){
-                                cc.cpOld += (cc.method(partA,partB));
+                            cc.method(partA);
+
+                            if (dbg){
+                                long tmp = cc.getCPFull(sys);
+                                if (tmp!=cc.cpOld){
+                                    sys.save("tmp.mfsys");
+                                    cout<<"CC err: "<<cc.cpOld<<" | "
+                                    <<tmp<<endl;
+                                }
+                            }
+                        }
+
+                        if (correlationPointCore){
+                            correlationPointCore->method(partA);
+
+                            if (dbg){
+                            
+                                long tmp = correlationPointCore->getCPFull(sys);
+                                if (tmp!=correlationPointCore->cpOld){
+                                    sys.save("tmp.mfsys");
+                                    cout<<"CP err: "<<correlationPointCore->cpOld<<" | "
+                                    <<tmp<<endl;
+                                }
                             }
                         }
                     } else {
@@ -310,6 +362,12 @@ int main(int argc, char* argv[])
                         cc.cp += double(cc.cpOld) / cc.correlationPairsNum;
                         cc.cp2 += (double(cc.cpOld*cc.cpOld) / (cc.correlationPairsNum * cc.correlationPairsNum));
                     }
+
+                    if (correlationPointCore){
+                        double addVal = correlationPointCore->cpOld / correlationPointCore->pointCount();
+                        correlationPointCore->cp += addVal;
+                        correlationPointCore->cp2 += addVal*addVal;
+                    }
                 }
             }
 
@@ -323,6 +381,12 @@ int main(int argc, char* argv[])
                 cc.cp /= cSteps*N;
                 cc.cp2 /= cSteps*N;
             }
+
+            if (correlationPointCore){
+                correlationPointCore->cp /= cSteps*N;
+                correlationPointCore->cp2 /= cSteps*N;
+            }
+
             mpf_class cT = (e2 - (e * e))/(t * t * sys.size());
 
             #pragma omp critical
@@ -333,6 +397,11 @@ int main(int argc, char* argv[])
                     omp_get_thread_num(), trseed);
                 for (auto &cc: correlationCores) 
                     printf(" %e %e",cc.cp.get_d(),cc.cp2.get_d());
+                if (correlationPointCore){
+                    printf(" %e %e",
+                    correlationPointCore->cp.get_d(),
+                    correlationPointCore->cp2.get_d());
+                }
                 printf("\n");
                 fflush(stdout);
             }
