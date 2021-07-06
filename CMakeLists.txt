@@ -20,7 +20,7 @@ find_package(OpenMP REQUIRED)
 
 include_directories("partsEngine" "argumentum-src/include")
 
-add_executable(metropolis main.cpp CorrelationCore.cpp CorrelationPointCore.cpp)
+add_executable(metropolis main.cpp CorrelationCore.cpp CorrelationPointCore.cpp MagnetisationCore.cpp)
 target_link_libraries(metropolis partsEngine gmp gmpxx OpenMP::OpenMP_CXX argumentum)
 
 add_executable(distanceAnalyser distanceAnalyser.cpp)

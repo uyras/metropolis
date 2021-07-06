@@ -13,7 +13,11 @@ public:
     std::map< std::pair<unsigned, unsigned>, short > correlationValues;
     unsigned correlationPairsNum;
 
-    CorrelationCore(double minRange, double maxRange, unsigned methodVar);
+    CorrelationCore(
+        double minRange, 
+        double maxRange, 
+        unsigned methodVar,
+        const std::vector<unsigned> & spins);
 
     /**
      * @brief Сaches the neighbours and energies for further calculations
@@ -31,10 +35,19 @@ public:
     double _minRange;
     double _maxRange;
     unsigned _methodVar;
+    std::vector<unsigned> spins;
+
     long cpOld;
     double dbg = false;
     mpf_class cp;
     mpf_class cp2;
+
+private:
+    void initMethod1(Part* partA, Part* partB);
+    void initMethod2( Part* partA, Part* partB);
+    void initMethod3( Part* partA, Part* partB);
+    double minRange2;
+    double maxRange2;
 };
 
 #endif //CORELLATIONCORE_H

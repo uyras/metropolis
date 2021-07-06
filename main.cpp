@@ -13,8 +13,10 @@
 #include "Part.h"
 #include "CorrelationCore.h"
 #include "CorrelationPointCore.h"
+#include "MagnetisationCore.h"
 #include "CorrelationParameters.h"
 #include "CorrelationPointParameters.h"
+#include "MagnetisationParameters.h"
 
 #define VERSION "0.0.3"
 
@@ -69,6 +71,17 @@ int main(int argc, char* argv[])
     params.add_command<CorrelationPointParameters>("corrpoint")
     .help("Gather also correlation parameter with spins around set of points. \
         This option has additional parameters. For information print: metropolis corrpoint --help.");
+    params.add_command<MagnetisationParameters>("magnetisation")
+    .help("Gather also the magnetisation information along selected axis. \
+        This option has additional parameters. For information print: metropolis magnetisation --help.");
+    params.add_command<MagnetisationParameters>("magnetisation2")
+    .help("The same as magnetisation, ndeeded for gathering several parameters in one run.");
+    params.add_command<MagnetisationParameters>("magnetisation3")
+    .help("The same as magnetisation, ndeeded for gathering several parameters in one run.");
+    params.add_command<MagnetisationParameters>("magnetisation4")
+    .help("The same as magnetisation, ndeeded for gathering several parameters in one run.");
+    params.add_command<MagnetisationParameters>("magnetisation5")
+    .help("The same as magnetisation, ndeeded for gathering several parameters in one run.");
 
 
     auto res = parser.parse_args( argc, argv, 1 );
@@ -78,6 +91,16 @@ int main(int argc, char* argv[])
 
     auto correlationOptions = static_pointer_cast<CorrelationParameters>( res.findCommand("correlation") );
     auto correlationPointOptions = static_pointer_cast<CorrelationPointParameters>( res.findCommand("corrpoint") );
+    std::vector< std::shared_ptr< MagnetisationParameters> > magnetisationOptions;
+    for (std::string commandName: {"magnetisation", 
+                                   "magnetisation2", 
+                                   "magnetisation3", 
+                                   "magnetisation4", 
+                                   "magnetisation5"}){
+        auto tmp = static_pointer_cast<MagnetisationParameters>( res.findCommand(commandName) );
+        if (tmp)
+            magnetisationOptions.push_back(tmp);
+    }
     
     ifstream f(filename);
     if (!f.is_open()) {
@@ -105,10 +128,7 @@ int main(int argc, char* argv[])
 
 
     if (correlationOptions){
-        if (correlationOptions->maxRange.size() != correlationOptions->minRange.size() ||
-            correlationOptions->maxRange.size() != correlationOptions->methodVar.size()){
-                cerr<<"Parameters --minRange, --maxRange and --method should \
-                have the same count of values."<<endl;
+        if (!correlationOptions->check(N)){
                 return 1;
         }
     }
@@ -118,6 +138,12 @@ int main(int argc, char* argv[])
                 cerr<<"Parameters -X, and -Y should \
                 have the same count of values."<<endl;
                 return 1;
+        }
+    }
+
+    for (auto mo: magnetisationOptions){
+        if (!mo->check(N)){
+            return 1;
         }
     }
 
@@ -154,22 +180,36 @@ int main(int argc, char* argv[])
             CorrelationCore cctemp(
                 correlationOptions->minRange[i], 
                 correlationOptions->maxRange[i],
-                correlationOptions->methodVar[i]);
+                correlationOptions->methodVar[i],
+                correlationOptions->spins[i]);
             cctemp.init(bigsys);
             if (cctemp.correlationPairsNum==0){
                 cerr<<"Check the correlation range #"<<i<<"."<<endl;
                 cerr<<"Could not find any spin pairs within this distance!"<<endl;
                 return 1;
             }
-            printf("# core #%03d: %.2f min range, %.2f max range, %.2f avg. neigh",i,
+            int totalSpins = correlationOptions->spins[i].size();
+            if (totalSpins==0) totalSpins=N;
+            printf("# core #%03d: %.2f min range, %.2f max range, %.2f avg. neigh.",i,
                 correlationOptions->minRange[i], correlationOptions->maxRange[i],
-                cctemp.correlationPairsNum/double(N));
+                cctemp.correlationPairsNum/double(totalSpins));
             if (correlationOptions->methodVar[i]==1)
-                printf(" method: XOR\n");
+                printf(" method: XOR");
             if (correlationOptions->methodVar[i]==2)
-                printf(" method: E/|E|\n");
+                printf(" method: E/|E|");
             if (correlationOptions->methodVar[i]==3)
-                printf(" method: scalar\n");
+                printf(" method: scalar");
+            
+            printf(" spins: ");
+            if (correlationOptions->spins[i].size()==0){
+                printf("All\n");
+            } else {
+                printf("%d",correlationOptions->spins[i][0]);
+                for (int ss=1; ss<correlationOptions->spins[i].size(); ++ss){
+                    printf(",%d",correlationOptions->spins[i][ss]);
+                }
+                printf("\n");
+            }
         }
     }
 
@@ -210,17 +250,35 @@ int main(int argc, char* argv[])
 
     }
 
+    for (auto mo: magnetisationOptions){
+        MagnetisationCore mcTemp(mo->axis,mo->_spins);
+        mcTemp.init(bigsys);
+        printf("#     magn.: v(%f;%f), start val %f,",mo->axis.x,mo->axis.y,mcTemp.getMOFull()/mo->_spins.size());
+        printf(" spins: ");
+            if (mo->_spins.size()==N){
+                printf("All\n");
+            } else {
+                printf("%d",mo->_spins[0]);
+                for (int ss=1; ss<mo->_spins.size(); ++ss){
+                    printf(",%d",mo->_spins[ss]);
+                }
+                printf("\n");
+            }
+    }
+
     printf("# T C(T)/N <E> <E^2> <mx> <mx^2> <my> <my^2> threadId seed");
     if (correlationOptions)
         for (int i=0; i<correlationOptions->minRange.size(); ++i) 
             printf(" <cc#%03d> <cc^2#%03d>",i,i);
     if (correlationPointOptions)
         printf(" <cp> <cc^2>");
+    for (int i=0; i<magnetisationOptions.size(); ++i)
+        printf(" <mo#%03d> <mo#%03d^2>",i,i);
     printf("\n");
     fflush(stdout);
 
 
-
+return 0;
     #pragma omp parallel
     {        
         #pragma omp for
@@ -228,6 +286,7 @@ int main(int argc, char* argv[])
 
             std::vector<CorrelationCore> correlationCores;
             std::shared_ptr<CorrelationPointCore> correlationPointCore;
+            std::vector<MagnetisationCore> magnetisationCores;
 
             const double t = temperatures[tt];
             const unsigned trseed = rseed+tt;
@@ -251,7 +310,8 @@ int main(int argc, char* argv[])
                 for (int i=0; i<correlationOptions->maxRange.size(); ++i){
                     correlationCores.push_back(CorrelationCore(correlationOptions->minRange[i],
                                                                 correlationOptions->maxRange[i],
-                                                                correlationOptions->methodVar[i]));
+                                                                correlationOptions->methodVar[i],
+                                                                correlationOptions->spins[i]));
                     correlationCores[i].init(sys);
                     //correlationCores[i].dbg = dbg;
                 }
@@ -268,6 +328,14 @@ int main(int argc, char* argv[])
                 
                 correlationPointCore->init(sys);
                 //correlationPointCore->dbg = dbg;
+            }
+
+
+            ///////// setup magnetisation parameters
+            for (int i=0; i<magnetisationOptions.size(); ++i){
+                magnetisationCores.push_back(
+                    MagnetisationCore(magnetisationOptions[i]->axis,(magnetisationOptions[i]->_spins)));
+                magnetisationCores[i].init(sys);
             }
 
             bool swapRes;
@@ -310,6 +378,11 @@ int main(int argc, char* argv[])
                 correlationPointCore->cpOld = correlationPointCore->getCPFull(sys);
             }
 
+
+            for (auto &mc: magnetisationCores){
+                mc.mOld = mc.getMOFull();
+            }
+
             for (unsigned step=0; step<cSteps; ++step){
                 for (unsigned sstep=0; sstep<sys.size(); ++sstep){
                     swapNum = intDistr(generator);
@@ -349,6 +422,19 @@ int main(int argc, char* argv[])
                                 }
                             }
                         }
+
+                        for (auto &mc: magnetisationCores){
+                            mc.method(partA->Id());
+
+                            if (dbg){
+                                long tmp = mc.getMOFull();
+                                if (tmp!=mc.mOld){
+                                    sys.save("tmp.mfsys");
+                                    cout<<"MO err: "<<mc.mOld<<" | "
+                                    <<tmp<<endl;
+                                }
+                            }
+                        }
                     } else {
                         sys.parts[swapNum]->rotate();
                     }
@@ -367,6 +453,12 @@ int main(int argc, char* argv[])
                         double addVal = correlationPointCore->cpOld / correlationPointCore->pointCount();
                         correlationPointCore->cp += addVal;
                         correlationPointCore->cp2 += addVal*addVal;
+                    }
+
+                    for (auto &mc: magnetisationCores){
+                        double addVal = double(mc.mOld) / mc.spins.size();
+                        mc.mv += addVal;
+                        mc.mv2 += addVal*addVal;
                     }
                 }
             }
@@ -387,6 +479,11 @@ int main(int argc, char* argv[])
                 correlationPointCore->cp2 /= cSteps*N;
             }
 
+            for (auto &mc: magnetisationCores){
+                mc.mv /= cSteps*N;
+                mc.mv2 /= cSteps*N;
+            }
+
             mpf_class cT = (e2 - (e * e))/(t * t * sys.size());
 
             #pragma omp critical
@@ -401,6 +498,9 @@ int main(int argc, char* argv[])
                     printf(" %e %e",
                     correlationPointCore->cp.get_d(),
                     correlationPointCore->cp2.get_d());
+                }
+                for (auto &mc: magnetisationCores){
+                    printf(" %e %e",mc.mv.get_d(),mc.mv2.get_d());
                 }
                 printf("\n");
                 fflush(stdout);

@@ -1,11 +1,19 @@
 #include "CorrelationCore.h"
 
-CorrelationCore::CorrelationCore(double minRange, double maxRange, unsigned methodVar):
-_minRange(minRange),_maxRange(maxRange),_methodVar(methodVar),
+CorrelationCore::CorrelationCore(
+    double minRange, 
+    double maxRange, 
+    unsigned methodVar,
+    const std::vector<unsigned> & spins):
+_minRange(minRange),
+_maxRange(maxRange),
+_methodVar(methodVar),
+spins(spins),
 cp(0,2048),
 cp2(0,2048)
 {
-
+    minRange2 = _minRange*_minRange;
+    maxRange2 = _maxRange*_maxRange;
 }
 
 void CorrelationCore::init(const PartArray & sys)
@@ -13,39 +21,19 @@ void CorrelationCore::init(const PartArray & sys)
     correlationNeighbours.resize(sys.size());
     correlationPairsNum=0;
 
-    double space2;
-    const double minr = this->_minRange * this->_minRange;
-    const double maxr = this->_maxRange * this->_maxRange;
-    double eTemp;
     for (auto partA: sys.parts){
         for (auto partB: sys.parts){
             if (partA==partB)
                 continue;
             
-            space2 = partA->pos.space_2(partB->pos);
-            if (space2>=minr && space2<=maxr){
-                this->correlationNeighbours[partA->Id()].push_front(partB);
-                ++correlationPairsNum;
+            double space2 = partA->pos.space_2(partB->pos);
 
-                if (this->_methodVar==2 || this->_methodVar==3){
-                    if (this->_methodVar==2){
-                        //В матрицу надо помещать энергии только в неперевернутых состояниях
-                        eTemp = hamiltonianDipolar(partA,partB)*-1; 
-                        if (partA->state!=partB->state)
-                            eTemp*=-1.;
-                    }
-
-                    if (this->_methodVar==3){
-                        eTemp = partA->m.scalar(partB->m); 
-                        if (partA->state!=partB->state)
-                            eTemp*=-1.;
-                    }
-
-
-                    if (eTemp>0)
-                        this->correlationValues[std::make_pair(partA->Id(),partB->Id())] = 1;
-                    else
-                        this->correlationValues[std::make_pair(partA->Id(),partB->Id())] = -1;
+            if (space2>=this->minRange2 && space2<=this->maxRange2){
+                switch (this->_methodVar)
+                {
+                    case 1: this->initMethod1(partA,partB); break;
+                    case 2: this->initMethod2(partA,partB); break;
+                    case 3: this->initMethod3(partA,partB); break;
                 }
             }
         }
@@ -95,4 +83,44 @@ char CorrelationCore::fScalar(const Part* partA, const Part* partB)
 {
     return fxor(partA,partB) * 
         this->correlationValues[std::make_pair(partA->Id(),partB->Id())];
+}
+
+void CorrelationCore::initMethod1(Part* partA, Part* partB){
+    this->correlationNeighbours[partA->Id()].push_front(partB);
+    ++correlationPairsNum;
+}
+
+void CorrelationCore::initMethod2( Part* partA, Part* partB){
+    double eTemp;
+    
+    this->correlationNeighbours[partA->Id()].push_front(partB);
+    ++correlationPairsNum;
+
+    //В матрицу надо помещать энергии только в неперевернутых состояниях
+    eTemp = hamiltonianDipolar(partA,partB)*-1; 
+    if (partA->state!=partB->state)
+        eTemp*=-1.;
+
+    if (eTemp>0)
+        this->correlationValues[std::make_pair(partA->Id(),partB->Id())] = 1;
+    else
+        this->correlationValues[std::make_pair(partA->Id(),partB->Id())] = -1;
+}
+
+void CorrelationCore::initMethod3( Part* partA, Part* partB){
+    double eTemp;
+    
+    this->correlationNeighbours[partA->Id()].push_front(partB);
+    ++correlationPairsNum;
+
+    //В матрицу надо помещать энергии только в неперевернутых состояниях
+    eTemp = partA->m.scalar(partB->m); 
+    if (partA->state!=partB->state)
+        eTemp*=-1.;
+
+
+    if (eTemp>0)
+        this->correlationValues[std::make_pair(partA->Id(),partB->Id())] = 1;
+    else
+        this->correlationValues[std::make_pair(partA->Id(),partB->Id())] = -1;
 }
