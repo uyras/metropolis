@@ -4,3 +4,6 @@
 [submodule "partsEngine"]
 	path = partsEngine
 	url = https://github.com/uyras/partsEngine
+[submodule "inicpp"]
+	path = inicpp
+	url = ../../SemaiCZE/inicpp.git

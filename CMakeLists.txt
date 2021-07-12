@@ -6,6 +6,7 @@ set (CMAKE_CXX_STANDARD 17)
 
 add_subdirectory(partsEngine)
 add_subdirectory(argumentum-src)
+add_subdirectory(inicpp)
 
 add_custom_target(fix ALL
 	COMMENT "fixing problem with argparse"
@@ -18,10 +19,18 @@ add_custom_target(fix ALL
 
 find_package(OpenMP REQUIRED)
 
-include_directories("partsEngine" "argumentum-src/include")
+include_directories("partsEngine" "argumentum-src/include" "inicpp/include")
 
-add_executable(metropolis main.cpp CorrelationCore.cpp CorrelationPointCore.cpp MagnetisationCore.cpp)
-target_link_libraries(metropolis partsEngine gmp gmpxx OpenMP::OpenMP_CXX argumentum)
+set(METROPOLIS_SRC
+	main.cpp 
+	ConfigManager.cpp
+	CorrelationCore.cpp 
+	CorrelationPointCore.cpp 
+	MagnetisationCore.cpp
+)
+
+add_executable(metropolis ${METROPOLIS_SRC})
+target_link_libraries(metropolis partsEngine gmp gmpxx OpenMP::OpenMP_CXX argumentum inicpp)
 
 add_executable(distanceAnalyser distanceAnalyser.cpp)
 target_link_libraries(distanceAnalyser partsEngine argumentum)
