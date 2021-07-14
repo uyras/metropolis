@@ -169,7 +169,7 @@ void ConfigManager::printHeader()
         }
     }
 
-    printf("# Metropolis algorithm for calculating heating capacity v%s\n","DEFINE THE VERSION!!!");
+    printf("# Metropolis algorithm for calculating heating capacity v%s\n",METROPOLIS_VERSION);
 
     printf("#   sysfile: %s\n",this->sysfile.c_str());
     printf("#    system: %d spins, %f interaction range\n",this->system.size(),this->range);

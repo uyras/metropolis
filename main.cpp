@@ -1,3 +1,5 @@
+#include "defines.h"
+
 #include <string_view>
 #include <iostream>
 #include <fstream>
@@ -19,10 +21,6 @@
 #include "CalculationParameter.h"
 #include <inicpp/inicpp.h>
 
-#define VERSION "0.0.3"
-
-bool dbg=false;
-
 int main(int argc, char* argv[])
 {
     //get file name
@@ -30,13 +28,24 @@ int main(int argc, char* argv[])
 
     auto parser = argumentum::argument_parser{};
     parser.config().program("metropolis").description("Program for calculating heat capacity \
-            and magnetisation of spin system with dipole-dipole hamiltonian");
+            and magnetisation of spin system with dipole-dipole hamiltonian v."+std::string(METROPOLIS_VERSION));
     auto commandLineParameters = std::make_shared<CommandLineParameters>();
     parser.params().add_parameters( commandLineParameters );
 
     auto parseResult = parser.parse_args( argc, argv, 1 );
-    if ( !parseResult )
+
+    if ( !parseResult ){
+        if (commandLineParameters && commandLineParameters->showExample){
+            std::cout<<endl;
+            std::cout<<"##########################################"<<endl;
+            std::cout<<"######## contents of example.ini: ########"<<endl;
+            std::cout<<"##########################################"<<endl;
+            std::cout<<endl;
+            std::cout<<example_string<<endl;
+        }
       return 1;
+    }
+    
     
     
     inicpp::config iniconfig;

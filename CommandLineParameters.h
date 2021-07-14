@@ -15,6 +15,7 @@ public:
     int cSteps;                  // calculate steps
     int rseed;                   // random seed value
     double iRange;                    // interaction range
+    bool showExample;
 
 protected:
     void add_parameters(argumentum::ParameterConfig &params) override
@@ -46,6 +47,9 @@ protected:
                 in this case it will be created several threads for each temperature.\
                 Another variant is to save temperatures to the text file, \
                 one temperature per line and use this as: metropolis @param.txt");
+        params.add_parameter(showExample,"-e","--example")
+            .help("Print out the example of ini-file and exit.");
+        params.add_default_help_option();
     }
 };
 

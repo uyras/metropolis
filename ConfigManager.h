@@ -1,6 +1,7 @@
 #ifndef CONFIGMANAGER_H
 #define CONFIGMANAGER_H
 
+#include "defines.h"
 
 #include <inicpp/inicpp.h>
 #include <vector>

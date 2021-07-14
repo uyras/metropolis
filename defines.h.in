@@ -1,0 +1,9 @@
+#ifndef DEFINES_H
+#define DEFINES_H
+
+// the configured options and settings for Tutorial
+#define METROPOLIS_VERSION "@PROJECT_VERSION_MAJOR@.@PROJECT_VERSION_MINOR@.@PROJECT_VERSION_PATCH@"
+
+const char example_string[] = "${example_string}";
+
+#endif //DEFINES_H
