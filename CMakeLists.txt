@@ -40,3 +40,6 @@ target_include_directories(metropolis PUBLIC "${PROJECT_BINARY_DIR}")
 
 add_executable(distanceAnalyser distanceAnalyser.cpp)
 target_link_libraries(distanceAnalyser partsEngine argumentum)
+
+add_executable(groundStater groundStater.cpp)
+target_link_libraries(groundStater partsEngine argumentum)
