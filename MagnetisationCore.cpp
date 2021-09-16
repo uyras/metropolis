@@ -72,14 +72,6 @@ bool MagnetisationCore::init(PartArray * sys)
     return true;
 }
 
-bool MagnetisationCore::unInit(){
-    if (!this->_inited)
-        return false;
-
-    //uninit
-    return true;
-}
-
 void MagnetisationCore::iterate(unsigned id){
     this->mOld += 2*this->method(id,this->sys);
     if (_debug){

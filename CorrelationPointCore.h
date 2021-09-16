@@ -28,7 +28,6 @@ public:
     virtual bool check(unsigned N) const;
     virtual void printHeader(unsigned) const;
     virtual bool init(PartArray * sys);
-    virtual bool unInit();
 
     virtual void iterate(unsigned id);
     virtual void incrementTotal();

@@ -86,6 +86,10 @@ int main(int argc, char* argv[])
 
             PartArray sys(config.getSystem());
 
+            const unsigned heatupSteps = config.getHeatup();
+            const unsigned calculateSteps = config.getCalculate();
+            const unsigned N = sys.size();
+
             bool swapRes;
             unsigned swapNum;
             double eOld = sys.E();
@@ -95,8 +99,8 @@ int main(int argc, char* argv[])
             double mxOld;
             double myOld;
 
-            for (unsigned step=0; step<config.getHeatup(); ++step){
-                for (unsigned sstep=0; sstep<sys.size(); ++sstep){
+            for (unsigned step=0; step<heatupSteps; ++step){
+                for (unsigned sstep=0; sstep<N; ++sstep){
                     swapNum = intDistr(generator);
                     sys.parts[swapNum]->rotate(true);
                     dE = eOld - sys.E();
@@ -117,8 +121,8 @@ int main(int argc, char* argv[])
                 cp->init(&sys); //attach the system and calculate the init value
             }
 
-            for (unsigned step=0; step<config.getCalculate(); ++step){
-                for (unsigned sstep=0; sstep<sys.size(); ++sstep){
+            for (unsigned step=0; step<calculateSteps; ++step){
+                for (unsigned sstep=0; sstep<N; ++sstep){
                     swapNum = intDistr(generator);
                     sys.parts[swapNum]->rotate(true);
                     dE = eOld - sys.E();
@@ -142,12 +146,12 @@ int main(int argc, char* argv[])
                 }
             }
 
-            unsigned totsteps = config.getCalculate()*sys.size();
+            unsigned totsteps = calculateSteps*N;
 
             e /= totsteps;
             e2 /= totsteps;
 
-            mpf_class cT = (e2 - (e * e))/(t * t * sys.size());
+            mpf_class cT = (e2 - (e * e))/(t * t * N);
 
             #pragma omp critical
             {

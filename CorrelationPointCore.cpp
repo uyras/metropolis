@@ -142,18 +142,8 @@ bool CorrelationPointCore::init(PartArray * sys)
         }
     }
 
-    this->_inited = true;
-
     this->cpOld = this->getFullTotal(this->sys);
 
-    return true;
-}
-
-bool CorrelationPointCore::unInit(){
-    if (!this->_inited)
-        return false;
-
-    //uninit
     return true;
 }
 
