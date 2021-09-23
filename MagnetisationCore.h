@@ -29,6 +29,8 @@ public:
 
     virtual MagnetisationCore * copy() { return new MagnetisationCore(*this); }
 
+    void setModule(bool module);
+
 private:
     double method(unsigned spinId, const PartArray * _sys) const;
 
@@ -41,6 +43,7 @@ private:
     double mOld;
     mpf_class mv;
     mpf_class mv2;
+    double _sumModule;
 };
 
 #endif //MAGNETISATIONCORE_H

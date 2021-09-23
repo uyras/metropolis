@@ -9,7 +9,8 @@ vector(vector),
 spins(spins),
 mv(0,2048),
 mv2(0,2048),
-mOld(0)
+mOld(0),
+_sumModule(false)
 {
     if (this->spins.size() == 0) {
         this->spins.resize(this->prototype->size(),0);
@@ -28,7 +29,12 @@ bool MagnetisationCore::check(unsigned N) const
 void MagnetisationCore::printHeader(unsigned num) const
 {
     printf("##### calculation param #%d #####\n",num);
-    printf("# type: magnetisation\n");
+
+    if (this->_sumModule)
+        printf("# type: magnetisation module\n");
+    else
+        printf("# type: magnetisation\n");
+
     printf("# id: %s\n",this->parameterId().c_str());
 
     printf("# magnetisation vector: (%f|%f); initial value %f\n",
@@ -77,13 +83,16 @@ void MagnetisationCore::iterate(unsigned id){
     if (_debug){
         double res = this->getFullTotal(this->sys);
         if (fabs(res-this->mOld)>0.01) 
-            cerr<<"# (dbg MagnetisationCore) total value is different: iterative="<<this->mOld<<", full="<<res<<endl;
+            cerr<<"# (dbg MagnetisationCore#"<<this->parameterId()<<") total value is different: iterative="<<this->mOld<<", full="<<res<<endl;
     }
 }
 
 void MagnetisationCore::incrementTotal(){
     double addVal = double(this->mOld) / this->spins.size();
-    this->mv += addVal;
+    if (this->_sumModule)
+        this->mv += fabs(addVal);
+    else
+        this->mv += addVal;
     this->mv2 += addVal*addVal;
 }
 
@@ -99,4 +108,9 @@ double MagnetisationCore::getFullTotal(const PartArray * _sys) const
 double MagnetisationCore::method(unsigned spinId, const PartArray * _sys) const
 {
         return magnetisationValues[spinId]*((_sys->parts[spinId]->state)?-1:+1);
+}
+
+void MagnetisationCore::setModule(bool module)
+{
+    this->_sumModule = module;
 }

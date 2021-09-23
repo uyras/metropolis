@@ -130,6 +130,10 @@ ConfigManager ConfigManager::init(
             if (sect.contains("spins"))
                 spins = sect["spins"].get_list<inicpp::unsigned_ini_t>();
 
+            bool setModule = false;;
+            if (sect.contains("module"))
+                setModule = sect["module"].get<inicpp::boolean_ini_t>();
+
 
             std::string t_parameterId(parameterId);
             bool is_list = sect["axis"].is_list();
@@ -144,6 +148,7 @@ ConfigManager ConfigManager::init(
                         spins);
 
                 if (setDebug) core->setDebug();
+                if (setModule) core->setModule(true);
 
                 tmp.parameters.push_back(std::move(core));
                 ++i;

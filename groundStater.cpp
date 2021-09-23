@@ -100,9 +100,10 @@ int main(int argc, char* argv[])
 
     printf("old E: %f, new E: %f\n", eInit, sys.E());
     if (sys.E()<eInit){
+        cout<<"new state is: "<<sys.state.toString()<<endl;
         sys.state.hardReset();
         sys.save(newFilename);
-        printf("Saved to %s",newFilename.c_str());
+        printf("Saved to %s\n",newFilename.c_str());
     } else {
         printf("Could not find deeper GS. Nothing to save. Exiting.\n");
     }
