@@ -41,12 +41,15 @@ void CorrelationCore::printHeader(unsigned num) const
     printf("# type: correlation\n");
     printf("# id: %s\n",this->parameterId().c_str());
     
-    int totalSpins = this->spins.size();
-    if (totalSpins==0) totalSpins=this->prototype->size();
+    int totalInteractingSpins = 0;
+    for (int i=0; i<this->prototype->size(); ++i){
+        if (!this->correlationNeighbours[i].empty())
+            ++totalInteractingSpins;
+    }
 
     printf("# minimal interaction distance: %.2f\n",this->_minRange);
     printf("# maximal interaction distance: %.2f\n",this->_maxRange);
-    printf("# average neighbours: %.2f\n",this->correlationPairsNum/double(totalSpins));
+    printf("# average neighbours: %.2f\n",this->correlationPairsNum/double(totalInteractingSpins)*2);
     if (this->_methodVar==0)
         printf("# method: XOR\n");
     if (this->_methodVar==1)
@@ -80,7 +83,8 @@ bool CorrelationCore::init(PartArray * sys)
     this->sys = sys;
     correlationNeighbours.resize(sys->size());
 
-    for (auto partA: sys->parts){
+    for (auto paId: this->spins){
+        auto partA = sys->getById(paId);
         for (auto partB: sys->parts){
             if (partA==partB)
                 continue;
@@ -88,11 +92,21 @@ bool CorrelationCore::init(PartArray * sys)
             double space2 = partA->pos.space_2(partB->pos);
 
             if (space2>=this->minRange2 && space2<=this->maxRange2){
-                switch (this->_methodVar)
-                {
-                    case 0: this->initMethod1(partA,partB); break;
-                    case 1: this->initMethod2(partA,partB); break;
-                    case 2: this->initMethod3(partA,partB); break;
+                if (!areNeighbours(partA,partB)){
+                    switch (this->_methodVar)
+                    {
+                        case 0: this->initMethod1(partA,partB); break;
+                        case 1: this->initMethod2(partA,partB); break;
+                        case 2: this->initMethod3(partA,partB); break;
+                    }
+                }
+                if (!areNeighbours(partB,partA)){
+                    switch (this->_methodVar)
+                    {
+                        case 0: this->initMethod1(partB,partA); break;
+                        case 1: this->initMethod2(partB,partA); break;
+                        case 2: this->initMethod3(partB,partA); break;
+                    }
                 }
             }
         }
@@ -101,11 +115,13 @@ bool CorrelationCore::init(PartArray * sys)
 
     if (_debug){
         for (auto partA : this->sys->parts){
-            fprintf(stderr,"# neigh for %u: ",partA->Id());
-            for (auto partB:this->correlationNeighbours[partA->Id()]){
-                fprintf(stderr,"%u,",partB->Id());
+            if (!this->correlationNeighbours[partA->Id()].empty()){
+                fprintf(stderr,"# neigh for %u: ",partA->Id());
+                for (auto partB:this->correlationNeighbours[partA->Id()]){
+                    fprintf(stderr,"%u,",partB->Id());
+                }
+                fprintf(stderr,"\n");
             }
-            fprintf(stderr,"\n");
         }
     }
 
@@ -123,7 +139,7 @@ void CorrelationCore::iterate(unsigned id){
     if (_debug){
         long res = this->getFullTotal(this->sys);
         if (res!=this->cpOld) 
-            cerr<<"# (dbg CorrelationCore) total value is different: iterative="<<this->cpOld<<", full="<<res<<endl;
+            cerr<<"# (dbg CorrelationCore#"<<this->parameterId()<<") total value is different: iterative="<<this->cpOld<<", full="<<res<<endl;
     }
 }
 

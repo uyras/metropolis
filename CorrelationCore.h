@@ -14,7 +14,7 @@ class CorrelationCore: public CalculationParameter
 public:
     std::vector< std::forward_list < Part* > > correlationNeighbours;
     std::map< std::pair<unsigned, unsigned>, short > correlationValues;
-    unsigned correlationPairsNum;
+    double correlationPairsNum;
 
     CorrelationCore(
         const std::string & parameterId,
@@ -60,6 +60,12 @@ private:
     mpf_class cp;
     mpf_class cp2;
     long cpOld;
+
+    bool areNeighbours(Part* partA, Part* partB)
+    { 
+        std::forward_list < Part* > &tmp = correlationNeighbours[partA->Id()];
+        return std::find(tmp.begin(), tmp.end(), partB) != tmp.end();
+    }
 };
 
 #endif //CORELLATIONCORE_H
