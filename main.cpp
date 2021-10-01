@@ -111,6 +111,7 @@ int main(int argc, char* argv[])
                 }
 
                 if (phase==1){
+                    sys.save("tmp.mfsys");
                     for (auto &cp: calculationParameters){
                         cp->init(&sys); //attach the system and calculate the init value
                     }
@@ -166,10 +167,10 @@ int main(int argc, char* argv[])
                         }
 
                         acceptSweep = false;
-                        if (dE>0 || t == 0){
+                        if (dE<0 || t == 0){
                             acceptSweep = true;
                         } else {
-                            p = exp(dE/t);
+                            p = exp(-dE/t);
                             randNum = doubleDistr(generator);
                             if (randNum <= p){
                                 acceptSweep = true;
