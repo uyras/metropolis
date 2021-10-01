@@ -6,4 +6,6 @@
 
 const char example_string[] = "${example_string}";
 
+#define FULL_REFRESH_EVERY 1000
+
 #endif //DEFINES_H

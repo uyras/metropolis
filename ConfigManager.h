@@ -36,6 +36,9 @@ public:
     unsigned N() const { return this->system.size(); }
     unsigned getHeatup() { return this->heatup; }
     unsigned getCalculate() { return this->calculate; }
+    const Vect & getField() const { return this->field; }
+
+    bool debug = false;
 
 private:
     ConfigManager(){};
@@ -45,6 +48,7 @@ private:
     unsigned calculate = 0;
     double range = 0;
     int seed = 0;
+    Vect field;
     std::vector<std::unique_ptr< CalculationParameter > > parameters;
     PartArray system;
 

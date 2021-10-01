@@ -33,6 +33,12 @@ ConfigManager ConfigManager::init(
         if (sect.contains("range")) tmp.range = sect["range"].get<inicpp::float_ini_t>();
         if (sect.contains("seed")) tmp.seed = sect["seed"].get<inicpp::unsigned_ini_t>();
         if (sect.contains("temperature")) tmp.temperatures = sect["temperature"].get_list<inicpp::float_ini_t>();
+        if (sect.contains("field")) 
+            tmp.field = ConfigManager::strToVect(sect["field"].get<inicpp::string_ini_t>());
+        else
+            tmp.field.setXYZ(0,0,0);
+
+        if (sect.contains("debug")) tmp.debug = sect["debug"].get<inicpp::boolean_ini_t>();
     }
     
     if (!commandLineParameters.sysfilename.empty())
@@ -178,6 +184,7 @@ void ConfigManager::printHeader()
 
     printf("#   sysfile: %s\n",this->sysfile.c_str());
     printf("#    system: %d spins, %f interaction range\n",this->system.size(),this->range);
+    printf("#   physics: ext.filed: (%f,%f), hamiltonian: dipole, space: 2D\n",this->field.x,this->field.y);
     printf("#        MC: %u heatup, %u compute steps\n",this->heatup,this->calculate);
     printf("#   threads: %d\n",threadCount);
     printf("#     rseed: %d+<temperature number>\n",this->seed);

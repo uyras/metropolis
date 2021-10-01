@@ -86,67 +86,133 @@ int main(int argc, char* argv[])
 
             PartArray sys(config.getSystem());
 
-            const unsigned heatupSteps = config.getHeatup();
-            const unsigned calculateSteps = config.getCalculate();
             const unsigned N = sys.size();
 
             bool swapRes;
             unsigned swapNum;
-            double eOld = sys.E();
-            double dE,p,randNum;
+            const Vect field = config.getField();
+            double eOld;
 
+            double dE,p,randNum;
 
             double mxOld;
             double myOld;
 
-            for (unsigned step=0; step<heatupSteps; ++step){
-                for (unsigned sstep=0; sstep<N; ++sstep){
-                    swapNum = intDistr(generator);
-                    sys.parts[swapNum]->rotate(true);
-                    dE = eOld - sys.E();
-                    p = exp(dE/t);
-                    randNum = doubleDistr(generator);
-                    if (dE>0 || (t>0 && randNum <= p)){
-                        eOld = sys.E();
-                    } else {
-                        sys.parts[swapNum]->rotate(true);
-                    }
+            bool acceptSweep;
+
+            //phase=0 is the heatup, phase=1 is calculate
+            for (unsigned phase=0; phase<=1; ++phase){
+
+                // full recalculte energy
+                eOld = sys.E();
+                // add external field
+                for (auto p: sys.parts){
+                    eOld -= p->m.scalar(field);
                 }
-            }
 
-
-            eOld = sys.E();
-
-            for (auto &cp: calculationParameters){
-                cp->init(&sys); //attach the system and calculate the init value
-            }
-
-            for (unsigned step=0; step<calculateSteps; ++step){
-                for (unsigned sstep=0; sstep<N; ++sstep){
-                    swapNum = intDistr(generator);
-                    sys.parts[swapNum]->rotate(true);
-                    dE = eOld - sys.E();
-                    p = exp(dE/t);
-                    randNum = doubleDistr(generator);
-                    if (dE>0 || (t>0 && randNum <= p)){
-                        Part* partA = sys.parts[swapNum];
-                        eOld = sys.E();
-
-                        for (auto &cp: calculationParameters){
-                            cp->iterate(partA->Id());
-                        }
-                    } else {
-                        sys.parts[swapNum]->rotate();
-                    }
-                    e += eOld;
-                    e2 += eOld*eOld;
+                if (phase==1){
                     for (auto &cp: calculationParameters){
-                            cp->incrementTotal();
+                        cp->init(&sys); //attach the system and calculate the init value
+                    }
+                }
+
+                unsigned calculateSteps;
+                if (phase == 0) 
+                    calculateSteps = config.getHeatup();
+                else
+                    calculateSteps = config.getCalculate();
+
+
+                for (unsigned step=0; step<calculateSteps; ++step){
+
+                    // full recalculte energy every to avoid FP error collection
+                    if (step != 0 && step % FULL_REFRESH_EVERY == 0){
+                        eOld = sys.E();
+                        // add external field
+                        for (auto p: sys.parts){
+                            eOld -= p->m.scalar(field);
+                        }
+                    }
+
+                    for (unsigned sstep=0; sstep<N; ++sstep){
+                        dE = 0;
+                        swapNum = intDistr(generator);
+                        Part *partA = sys.getById(swapNum);
+
+                        { // get dE
+                            unsigned j=0;
+
+                            if (sys.interactionRange()!=0.0){
+                                for (Part* neigh : sys.neighbours[swapNum]){
+                                    if (neigh->state==partA->state) //assume it is rotated, inverse state in mind
+                                        dE -=  2. * sys.eAt(swapNum,j);
+                                    else
+                                        dE += 2. * sys.eAt(swapNum,j);
+                                    ++j;
+                                }
+                            } else {
+                                for (Part* neigh : sys.parts){
+                                    if (partA!=neigh){
+                                        if (neigh->state==partA->state)
+                                            dE -=  2. * sys.eAt(swapNum,j);
+                                        else
+                                            dE += 2. * sys.eAt(swapNum,j);
+                                        ++j;
+                                    }
+                                }
+                            }
+
+                            dE += 2 * partA->m.scalar(field);
+                        }
+
+                        acceptSweep = false;
+                        if (dE>0 || t == 0){
+                            acceptSweep = true;
+                        } else {
+                            p = exp(dE/t);
+                            randNum = doubleDistr(generator);
+                            if (randNum <= p){
+                                acceptSweep = true;
+                            }
+                        }
+
+                        if (acceptSweep){
+                            sys.parts[swapNum]->rotate();
+                            eOld += dE;
+
+                            if (phase==1){
+                                for (auto &cp: calculationParameters){
+                                    cp->iterate(partA->Id());
+                                }
+                            }
+
+                            if (config.debug){
+                                //recalc energy
+                                double eTmp = sys.E();
+
+                                // add external field
+                                for (auto pt: sys.parts){
+                                    eTmp -= pt->m.scalar(field);
+                                }
+
+                                if (fabs( eTmp-eOld ) > 0.00001 ){
+                                    cerr<<"# (dbg main#"<<phase<<") energy is different. iterative: "<<eOld<<"; actual: "<<eTmp<<endl;
+                                }
+                            }
+                        }
+
+                        if (phase==1){
+                            e += eOld;
+                            e2 += eOld*eOld;
+                            for (auto &cp: calculationParameters){
+                                    cp->incrementTotal();
+                            }
+                        }
                     }
                 }
             }
 
-            unsigned totsteps = calculateSteps*N;
+            unsigned totsteps = config.getCalculate()*N;
 
             e /= totsteps;
             e2 /= totsteps;
