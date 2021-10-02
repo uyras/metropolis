@@ -16,6 +16,7 @@
 #include "CorrelationCore.h"
 #include "CorrelationPointCore.h"
 #include "MagnetisationCore.h"
+#include "MagnetisationLengthCore.h"
 #include "CommandLineParameters.h"
 #include "ConfigManager.h"
 #include "CalculationParameter.h"

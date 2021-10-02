@@ -28,6 +28,14 @@ bool MagnetisationCore::check(unsigned N) const
 
 void MagnetisationCore::printHeader(unsigned num) const
 {
+    // get saturation magnetisation
+    double saturation=0;
+    for (auto s : this->spins){
+        saturation += fabs(this->prototype->parts[s]->m.scalar(this->vector));
+    }
+    saturation /= this->spins.size();
+
+
     printf("##### calculation param #%d #####\n",num);
 
     if (this->_sumModule)
@@ -41,6 +49,7 @@ void MagnetisationCore::printHeader(unsigned num) const
         this->vector.x,
         this->vector.y,
         this->getFullTotal(this->prototype)/this->spins.size());
+    printf("# saturation magnetisation / N: %f\n", saturation);
     printf("# spins: ");
     if (this->spins.size()==this->prototype->size()){
         printf("All\n");

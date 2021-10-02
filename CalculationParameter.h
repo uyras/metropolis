@@ -13,7 +13,7 @@ public:
     void setDebug(){this->_debug = true;}
     virtual bool check(unsigned) const = 0;
     virtual void printHeader(unsigned) const = 0;
-    virtual bool init(PartArray * sys) {return true;};
+    virtual bool init(PartArray * sys) {this->sys = sys; return true;};
 
     virtual void iterate(unsigned id) = 0;
     virtual void incrementTotal() = 0;
@@ -29,7 +29,7 @@ protected:
 
     void prototypeInit(PartArray* prototype){
         this->init(prototype);
-        this->sys = nullptr;
+        //this->sys = nullptr;
     }
 
 private:

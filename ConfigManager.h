@@ -15,6 +15,7 @@
 #include "CorrelationCore.h"
 #include "CorrelationPointCore.h"
 #include "MagnetisationCore.h"
+#include "MagnetisationLengthCore.h"
 
 static const std::map<std::string, unsigned> methods = 
     {{"xor",0},{"energy",1},{"scalar",2}};

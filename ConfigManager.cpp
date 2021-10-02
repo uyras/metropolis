@@ -159,6 +159,21 @@ ConfigManager ConfigManager::init(
                 tmp.parameters.push_back(std::move(core));
                 ++i;
             }
+        } else if (parameterName == "magnetisationlength") {
+
+            std::vector<uint64_t> spins;
+            if (sect.contains("spins"))
+                spins = sect["spins"].get_list<inicpp::unsigned_ini_t>();
+
+            std::unique_ptr<MagnetisationLengthCore> core = 
+                make_unique<MagnetisationLengthCore>(parameterId,
+                    &tmp.system,
+                    spins);
+
+            if (setDebug) core->setDebug();
+
+            tmp.parameters.push_back(std::move(core));
+
         } else {
             throw(std::invalid_argument("Parameter " + parameterName + " is unknown"));
         }
