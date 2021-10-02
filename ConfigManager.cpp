@@ -199,7 +199,7 @@ void ConfigManager::printHeader()
 
     printf("#   sysfile: %s\n",this->sysfile.c_str());
     printf("#    system: %d spins, %f interaction range\n",this->system.size(),this->range);
-    printf("#   physics: ext.filed: (%f,%f), hamiltonian: dipole, space: 2D\n",this->field.x,this->field.y);
+    printf("#   physics: ext.filed: (%g,%g), hamiltonian: dipole, space: 2D\n",this->field.x,this->field.y);
     printf("#        MC: %u heatup, %u compute steps\n",this->heatup,this->calculate);
     printf("#   threads: %d\n",threadCount);
     printf("#     rseed: %d+<temperature number>\n",this->seed);
