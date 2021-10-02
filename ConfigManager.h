@@ -40,6 +40,7 @@ public:
     const Vect & getField() const { return this->field; }
 
     bool debug = false;
+    int threadCount=0;
 
 private:
     ConfigManager(){};

@@ -186,7 +186,6 @@ ConfigManager ConfigManager::init(
 void ConfigManager::printHeader()
 {
     //obtain the avaliable number of threads
-    int threadCount = 0;
     #pragma omp parallel
     {
         #pragma omp single
@@ -226,6 +225,7 @@ void ConfigManager::printHeader()
         printf(" %d:<%s> %d:<%s^2>",i,co->parameterId().c_str(),i+1,co->parameterId().c_str());
         i+=2;
     }
+    printf(" %d:time,s",i);
     printf("\n");
     fflush(stdout);
 }

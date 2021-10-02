@@ -9,6 +9,7 @@
 #include <string>
 #include <bitset>
 #include <gmpxx.h>
+#include <chrono>
 #include <omp.h>
 #include <argumentum/argparse.h>
 #include "PartArray.h"
@@ -24,6 +25,9 @@
 
 int main(int argc, char* argv[])
 {
+
+    auto time_start = std::chrono::steady_clock::now();
+
     //get file name
     bool parse_failed=false;
 
@@ -65,11 +69,19 @@ int main(int argc, char* argv[])
     config.printHeader();
 
 
+    vector<string> finalStates(config.temperatures.size());
+    vector<double> finalEnergies(finalStates.size());
+    vector< std::chrono::time_point<std::chrono::steady_clock> > temperature_times_start ( finalStates.size() );
+    vector< std::chrono::time_point<std::chrono::steady_clock> > temperature_times_end ( finalStates.size() );
+
+
 
     #pragma omp parallel
     {        
         #pragma omp for
         for (int tt=0; tt<config.temperatures.size();  ++tt){
+
+            temperature_times_start[tt] = std::chrono::steady_clock::now();
 
             std::vector< std::unique_ptr< CalculationParameter > > calculationParameters;
             config.getParameters(calculationParameters);
@@ -221,6 +233,11 @@ int main(int argc, char* argv[])
 
             mpf_class cT = (e2 - (e * e))/(t * t * N);
 
+
+            finalStates[tt] = sys.state.toString();
+            finalEnergies[tt] = eOld;
+            temperature_times_end[tt] = std::chrono::steady_clock::now();
+
             #pragma omp critical
             {
                 printf("%e %e %e %e %d %d",
@@ -229,6 +246,8 @@ int main(int argc, char* argv[])
                 for (auto &cp: calculationParameters){
                     printf(" %e %e",cp->getTotalDouble(totsteps),cp->getTotal2Double(totsteps));
                 }
+                auto rtime = std::chrono::duration_cast<std::chrono::milliseconds>(temperature_times_end[tt]-temperature_times_start[tt]).count();
+                printf(" %f",rtime/1000.);
                 printf("\n");
                 fflush(stdout);
             }
@@ -236,6 +255,27 @@ int main(int argc, char* argv[])
         
 
     }
+
+    auto time_end = std::chrono::steady_clock::now();
     
+    //print out the states and times of running
+    int64_t time_proc_total=0;
+    printf("###########  end of calculations #############\n");
+    printf("#\n");
+    printf("###########     final notes:     #############\n");
+    for (int tt=0; tt<config.temperatures.size(); ++tt){
+        auto rtime = std::chrono::duration_cast<std::chrono::milliseconds>(temperature_times_end[tt]-temperature_times_start[tt]).count();
+        printf("#%d, time=%fs, T=%e, E=%e, final state: %s\n",
+        tt,
+        rtime/1000.,
+        config.temperatures[tt],
+        finalEnergies[tt],
+        finalStates[tt].c_str());
+        time_proc_total += rtime;
+    }
+    printf("#\n");
+    int64_t time_total = std::chrono::duration_cast<std::chrono::milliseconds>(time_end-time_start).count();
+    double speedup = double(time_proc_total)/time_total;
+    printf("# total time: %fs, speedup: %f%, efficiency: %f%\n",time_total/1000., speedup*100, speedup/config.threadCount*100 );
 
 }
