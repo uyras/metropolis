@@ -213,22 +213,22 @@ int main(int argc, char* argv[])
                                 }
                             }
                         }
+                    }
 
-                        if (phase==1){
-                            e += eOld;
-                            e2 += eOld*eOld;
-                            for (auto &cp: calculationParameters){
-                                    cp->incrementTotal();
-                            }
+                    // update thermodynamic averages (porosyenok ;) 
+                    if (phase==1){
+                        e += eOld;
+                        e2 += eOld*eOld;
+                        for (auto &cp: calculationParameters){
+                                cp->incrementTotal();
                         }
                     }
+
                 }
             }
 
-            unsigned totsteps = config.getCalculate()*N;
-
-            e /= totsteps;
-            e2 /= totsteps;
+            e /= config.getCalculate();
+            e2 /= config.getCalculate();
 
             mpf_class cT = (e2 - (e * e))/(t * t * N);
 
@@ -243,7 +243,9 @@ int main(int argc, char* argv[])
                     t, cT.get_mpf_t(), e.get_mpf_t(), e2.get_mpf_t(), 
                     omp_get_thread_num(), trseed);
                 for (auto &cp: calculationParameters){
-                    gmp_printf(" %.30Fe %.30Fe",cp->getTotal(totsteps).get_mpf_t(),cp->getTotal2(totsteps).get_mpf_t());
+                    gmp_printf(" %.30Fe %.30Fe",
+                        cp->getTotal (config.getCalculate()).get_mpf_t(),
+                        cp->getTotal2(config.getCalculate()).get_mpf_t());
                 }
                 auto rtime = std::chrono::duration_cast<std::chrono::milliseconds>(temperature_times_end[tt]-temperature_times_start[tt]).count();
                 printf(" %f",rtime/1000.);
