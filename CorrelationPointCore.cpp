@@ -11,8 +11,8 @@ X(X),Y(Y),
 _distance(distance),
 _minRange(minRange),
 _maxRange(maxRange),
-cp(0,2048),
-cp2(0,2048)
+cp(0,1024*8),
+cp2(0,2048*8)
 {
     this->prototypeInit(prototype);
 }

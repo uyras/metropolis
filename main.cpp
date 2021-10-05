@@ -25,7 +25,6 @@
 
 int main(int argc, char* argv[])
 {
-
     auto time_start = std::chrono::steady_clock::now();
 
     //get file name
@@ -94,8 +93,8 @@ int main(int argc, char* argv[])
             uniform_real_distribution<double> doubleDistr(0,1); // right edge is not included
 
             /////////// import the system
-            mpf_class e(0,1024);
-            mpf_class e2(0,2048);
+            mpf_class e(0,1024*8);
+            mpf_class e2(0,2048*8);
 
             PartArray sys(config.getSystem());
 
@@ -240,11 +239,11 @@ int main(int argc, char* argv[])
 
             #pragma omp critical
             {
-                printf("%e %e %e %e %d %d",
-                    t, cT.get_d(), e.get_d(), e2.get_d(), 
+                gmp_printf("%e %.30Fe %.30Fe %.30Fe %d %d",
+                    t, cT.get_mpf_t(), e.get_mpf_t(), e2.get_mpf_t(), 
                     omp_get_thread_num(), trseed);
                 for (auto &cp: calculationParameters){
-                    printf(" %e %e",cp->getTotalDouble(totsteps),cp->getTotal2Double(totsteps));
+                    gmp_printf(" %.30Fe %.30Fe",cp->getTotal(totsteps).get_mpf_t(),cp->getTotal2(totsteps).get_mpf_t());
                 }
                 auto rtime = std::chrono::duration_cast<std::chrono::milliseconds>(temperature_times_end[tt]-temperature_times_start[tt]).count();
                 printf(" %f",rtime/1000.);
@@ -273,6 +272,7 @@ int main(int argc, char* argv[])
         finalStates[tt].c_str());
         time_proc_total += rtime;
     }
+
     printf("#\n");
     int64_t time_total = std::chrono::duration_cast<std::chrono::milliseconds>(time_end-time_start).count();
     double speedup = double(time_proc_total)/time_total;

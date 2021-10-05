@@ -7,8 +7,8 @@ MagnetisationCore::MagnetisationCore(const std::string & parameterId,
 CalculationParameter(parameterId,prototype),
 vector(vector),
 spins(spins),
-mv(0,2048),
-mv2(0,2048),
+mv(0,1024*8),
+mv2(0,2048*8),
 mOld(0),
 _sumModule(false)
 {

@@ -5,8 +5,8 @@ MagnetisationLengthCore::MagnetisationLengthCore(const std::string & parameterId
     const std::vector<uint64_t> & spins):
 CalculationParameter(parameterId,prototype),
 spins(spins),
-mv(0,2048),
-mv2(0,2048),
+mv(0,1024*8),
+mv2(0,2048*8),
 mOld(0,0,0)
 {
     if (this->spins.size() == 0) {

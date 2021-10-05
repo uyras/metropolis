@@ -2,6 +2,7 @@
 #define CALCULATIONPARAMETER_H
 
 #include <string>
+#include <gmpxx.h>
 #include "PartArray.h"
 
 class CalculationParameter
@@ -17,8 +18,10 @@ public:
 
     virtual void iterate(unsigned id) = 0;
     virtual void incrementTotal() = 0;
-    virtual double getTotalDouble(unsigned) = 0;
-    virtual double getTotal2Double(unsigned) = 0;
+    virtual mpf_class getTotal(unsigned) = 0;
+    virtual mpf_class getTotal2(unsigned) = 0;
+    double getTotalDouble(unsigned steps) { return getTotal(steps).get_d(); };
+    double getTotal2Double(unsigned steps) { return getTotal2(steps).get_d(); };
 
     virtual CalculationParameter * copy() = 0;
 

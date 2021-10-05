@@ -23,8 +23,8 @@ public:
 
     virtual void iterate(unsigned id);
     virtual void incrementTotal();
-    virtual double getTotalDouble(unsigned steps){ mpf_class tmp = this->mv / steps; return tmp.get_d();}
-    virtual double getTotal2Double(unsigned steps){ mpf_class tmp = this->mv2 / steps; return tmp.get_d();}
+    virtual mpf_class getTotal(unsigned steps){ return this->mv / steps; }
+    virtual mpf_class getTotal2(unsigned steps){ return this->mv2 / steps; }
 
     virtual MagnetisationLengthCore * copy() { return new MagnetisationLengthCore(*this); }
 

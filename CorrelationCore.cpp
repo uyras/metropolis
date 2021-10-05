@@ -12,8 +12,8 @@ _minRange(minRange),
 _maxRange(maxRange),
 _methodVar(methodVar),
 spins(spins),
-cp(0,2048),
-cp2(0,2048)
+cp(0,1024*8),
+cp2(0,2048*8)
 {
     minRange2 = _minRange*_minRange;
     maxRange2 = _maxRange*_maxRange;
