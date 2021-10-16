@@ -20,6 +20,10 @@
 static const std::map<std::string, unsigned> methods = 
     {{"xor",0},{"energy",1},{"scalar",2}};
 
+
+double hamiltonianDipolarPBC(Part* a, Part* b);
+Vect radiusPBC(const Vect& a, const Vect& b);
+
 class ConfigManager
 {
 public:
@@ -38,14 +42,19 @@ public:
     unsigned getHeatup() { return this->heatup; }
     unsigned getCalculate() { return this->calculate; }
     const Vect & getField() const { return this->field; }
+    bool isPBC() const { return this->pbc; }
 
     bool debug = false;
     int threadCount=0;
+    static Vect size;
+
+    static void setPBCEnergies(PartArray & sys);
 
 private:
     ConfigManager(){};
 
     std::string sysfile;
+    bool pbc = 0;
     unsigned heatup = 0;
     unsigned calculate = 0;
     double range = 0;

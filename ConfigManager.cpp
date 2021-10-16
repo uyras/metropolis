@@ -1,5 +1,7 @@
 #include "ConfigManager.h"
 
+Vect ConfigManager::size;
+
 bool ConfigManager::check_config()
 {
     //check main parameters
@@ -33,6 +35,15 @@ ConfigManager ConfigManager::init(
         if (sect.contains("range")) tmp.range = sect["range"].get<inicpp::float_ini_t>();
         if (sect.contains("seed")) tmp.seed = sect["seed"].get<inicpp::unsigned_ini_t>();
         if (sect.contains("temperature")) tmp.temperatures = sect["temperature"].get_list<inicpp::float_ini_t>();
+        if (sect.contains("boundaries") && sect["boundaries"].get<inicpp::string_ini_t>()=="periodic") 
+            tmp.pbc = true;
+        if (sect.contains("size")) {
+            ConfigManager::size =
+             ConfigManager::strToVect(sect["size"].get<inicpp::string_ini_t>());
+        } else {
+            throw std::invalid_argument("You have to set the \"size\" parameter when using boundaries=periodic");
+        }
+        
         if (sect.contains("field")) 
             tmp.field = ConfigManager::strToVect(sect["field"].get<inicpp::string_ini_t>());
         else
@@ -58,6 +69,9 @@ ConfigManager ConfigManager::init(
     tmp.system.load(tmp.sysfile);
     tmp.system.state.hardReset();
     tmp.system.setInteractionRange(tmp.range);
+    if (tmp.isPBC()){
+        ConfigManager::setPBCEnergies(tmp.system);
+    }
 
     for (auto & sect: iniconfig){
         const std::string parameterString = sect.get_name();
@@ -194,11 +208,22 @@ void ConfigManager::printHeader()
         }
     }
 
+    double avgNeighb = 0;
+    for (int i=0; i<this->system.size(); ++i)
+        avgNeighb += this->system.neighbourSize(i);
+    avgNeighb /= this->system.size();
+
     printf("# Metropolis algorithm for calculating heating capacity v%s\n",METROPOLIS_VERSION);
 
     printf("#   sysfile: %s\n",this->sysfile.c_str());
-    printf("#    system: %d spins, %f interaction range\n",this->system.size(),this->range);
+    printf("#    system: %d spins, %f interaction range, %f avg. neighbours\n",this->system.size(),this->range, avgNeighb);
     printf("#   physics: ext.filed: (%g,%g), hamiltonian: dipole, space: 2D\n",this->field.x,this->field.y);
+    printf("#    bounds: ");
+    if (this->isPBC()){
+        printf("periodic, system size: (%g,%g)\n",ConfigManager::size.x,ConfigManager::size.y);
+    } else {
+        printf("open\n");
+    }
     printf("#        MC: %u heatup, %u compute steps\n",this->heatup,this->calculate);
     printf("#   threads: %d\n",threadCount);
     printf("#     rseed: %d+<temperature number>\n",this->seed);
@@ -236,4 +261,70 @@ void ConfigManager::getParameters(std::vector< std::unique_ptr< CalculationParam
         calculationParameters.push_back(std::unique_ptr<CalculationParameter>(co->copy()));
     }
     return;
+}
+
+void ConfigManager::setPBCEnergies(PartArray & sys)
+{
+    // first update all neighbours
+    sys.neighbours.clear();
+
+    //определяем соседей частицы
+    if (sys.interactionRange() != 0.){ //только если не все со всеми
+        sys.neighbours.resize(sys.size());
+        Part *part, *temp;
+        for (unsigned i=0; i<sys.size(); i++){
+            sys.neighbours[i].clear();
+            part = sys[i];
+            vector<Part*>::iterator iter = sys.parts.begin();
+            while(iter!=sys.parts.end()){
+                temp = *iter;
+                if (temp != part && radiusPBC(part->pos,temp->pos).length() < sys.interactionRange()){
+                    sys.neighbours[i].push_front(temp);
+                }
+                iter++;
+            }
+        }
+    }
+    sys.changeSystem();
+
+    //then set the hamiltonian
+    sys.setHamiltonian(hamiltonianDipolarPBC);
+}
+
+
+
+double hamiltonianDipolarPBC(Part *a, Part *b)
+{
+    Vect rij = radiusPBC(b->pos,a->pos);
+    double r2, r, r5,E;
+    r2 = rij.x * rij.x + rij.y * rij.y;
+    r = sqrt(r2); //трудное место, заменить бы
+    r5 = r2 * r2 * r; //радиус в пятой
+    
+    E = //энергия считается векторным методом, так как она не нужна для каждой оси
+            (( (a->m.x * b->m.x + a->m.y * b->m.y) * r2)
+                -
+                (3 * (b->m.x * rij.x + b->m.y * rij.y) * (a->m.x * rij.x + a->m.y * rij.y)  )) / r5;
+    return E;
+}
+
+Vect radiusPBC(const Vect& a, const Vect& b){
+    Vect dist = a - b;
+    if (fabs(dist.x) > ConfigManager::size.x/2){
+        if (a.x < b.x){
+            dist.x += ConfigManager::size.x;
+        } else {
+            dist.x -= ConfigManager::size.x;
+        }
+    }
+
+    if (fabs(dist.y) > ConfigManager::size.y/2){
+        if (a.y < b.y){
+            dist.y += ConfigManager::size.y;
+        } else {
+            dist.y -= ConfigManager::size.y;
+        }
+    }
+    
+    return dist;
 }

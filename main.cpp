@@ -97,6 +97,23 @@ int main(int argc, char* argv[])
             mpf_class e2(0,2048*8);
 
             PartArray sys(config.getSystem());
+            if (config.isPBC()){
+                ConfigManager::setPBCEnergies(sys);
+            }
+
+
+
+            // write neighbours and energies
+            /*sys.E();
+            for (unsigned i=0; i<sys.size(); i++){
+                cout<<i<<": ";
+                unsigned j=0;
+                for (auto p: sys.neighbours[i]){
+                    cout<<p->Id()<<"("<<sys.eAt(i,j)<<"), ";
+                    ++j;
+                }
+                cout<<endl;
+            }*/
 
             const unsigned N = sys.size();
 
