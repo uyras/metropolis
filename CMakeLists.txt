@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.9)
 
-project(metropolis VERSION 0.0.9)
+project(probabiliter VERSION 0.0.9)
 
 set (CMAKE_CXX_STANDARD 17)
 
@@ -24,10 +24,6 @@ include_directories("partsEngine" "argumentum-src/include" "inicpp/include")
 set(METROPOLIS_SRC
 	main.cpp
 	ConfigManager.cpp
-	CorrelationCore.cpp 
-	CorrelationPointCore.cpp 
-	MagnetisationCore.cpp
-	MagnetisationLengthCore.cpp
 )
 
 file(STRINGS examples/example.ini example_string_a)
@@ -35,12 +31,6 @@ list(JOIN example_string_a  "\\n"  example_string)
 
 configure_file(defines.h.in defines.h)
 
-add_executable(metropolis ${METROPOLIS_SRC})
-target_link_libraries(metropolis partsEngine gmp gmpxx OpenMP::OpenMP_CXX argumentum inicpp)
-target_include_directories(metropolis PUBLIC "${PROJECT_BINARY_DIR}")
-
-add_executable(distanceAnalyser distanceAnalyser.cpp)
-target_link_libraries(distanceAnalyser partsEngine argumentum)
-
-add_executable(groundStater groundStater.cpp)
-target_link_libraries(groundStater partsEngine argumentum)
+add_executable(probabiliter ${METROPOLIS_SRC})
+target_link_libraries(probabiliter partsEngine gmp gmpxx OpenMP::OpenMP_CXX argumentum inicpp)
+target_include_directories(probabiliter PUBLIC "${PROJECT_BINARY_DIR}")

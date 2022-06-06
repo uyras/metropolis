@@ -14,13 +14,8 @@
 #include <argumentum/argparse.h>
 #include "PartArray.h"
 #include "Part.h"
-#include "CorrelationCore.h"
-#include "CorrelationPointCore.h"
-#include "MagnetisationCore.h"
-#include "MagnetisationLengthCore.h"
 #include "CommandLineParameters.h"
 #include "ConfigManager.h"
-#include "CalculationParameter.h"
 #include <inicpp/inicpp.h>
 
 int main(int argc, char* argv[])
@@ -82,9 +77,6 @@ int main(int argc, char* argv[])
 
             temperature_times_start[tt] = std::chrono::steady_clock::now();
 
-            std::vector< std::unique_ptr< CalculationParameter > > calculationParameters;
-            config.getParameters(calculationParameters);
-
             const double t = config.temperatures[tt];
             const unsigned trseed = config.getSeed()+tt;
             default_random_engine generator;
@@ -140,10 +132,7 @@ int main(int argc, char* argv[])
                 }
 
                 if (phase==1){
-                    sys.save("tmp.mfsys");
-                    for (auto &cp: calculationParameters){
-                        cp->init(&sys); //attach the system and calculate the init value
-                    }
+                    sys.save("tmp.mfsys"); // save system configuration right after heatup process
                 }
 
                 unsigned calculateSteps;
@@ -210,12 +199,6 @@ int main(int argc, char* argv[])
                             sys.parts[swapNum]->rotate();
                             eOld += dE;
 
-                            if (phase==1){
-                                for (auto &cp: calculationParameters){
-                                    cp->iterate(partA->Id());
-                                }
-                            }
-
                             if (config.debug){
                                 //recalc energy
                                 double eTmp = sys.E();
@@ -236,9 +219,6 @@ int main(int argc, char* argv[])
                     if (phase==1){
                         e += eOld;
                         e2 += eOld*eOld;
-                        for (auto &cp: calculationParameters){
-                                cp->incrementTotal();
-                        }
                     }
 
                 }
@@ -259,11 +239,6 @@ int main(int argc, char* argv[])
                 gmp_printf("%e %.30Fe %.30Fe %.30Fe %d %d",
                     t, cT.get_mpf_t(), e.get_mpf_t(), e2.get_mpf_t(), 
                     omp_get_thread_num(), trseed);
-                for (auto &cp: calculationParameters){
-                    gmp_printf(" %.30Fe %.30Fe",
-                        cp->getTotal (config.getCalculate()).get_mpf_t(),
-                        cp->getTotal2(config.getCalculate()).get_mpf_t());
-                }
                 auto rtime = std::chrono::duration_cast<std::chrono::milliseconds>(temperature_times_end[tt]-temperature_times_start[tt]).count();
                 printf(" %f",rtime/1000.);
                 printf("\n");
@@ -295,6 +270,6 @@ int main(int argc, char* argv[])
     printf("#\n");
     int64_t time_total = std::chrono::duration_cast<std::chrono::milliseconds>(time_end-time_start).count();
     double speedup = double(time_proc_total)/time_total;
-    printf("# total time: %fs, speedup: %f%, efficiency: %f%\n",time_total/1000., speedup*100, speedup/config.threadCount*100 );
+    printf("# total time: %fs, speedup: %f%%, efficiency: %f%%\n",time_total/1000., speedup*100, speedup/config.threadCount*100 );
 
 }

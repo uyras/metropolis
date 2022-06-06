@@ -11,11 +11,6 @@
 #include "PartArray.h"
 #include "Vect.h"
 #include "CommandLineParameters.h"
-#include "CalculationParameter.h"
-#include "CorrelationCore.h"
-#include "CorrelationPointCore.h"
-#include "MagnetisationCore.h"
-#include "MagnetisationLengthCore.h"
 
 static const std::map<std::string, unsigned> methods = 
     {{"xor",0},{"energy",1},{"scalar",2}};
@@ -31,7 +26,6 @@ public:
     static ConfigManager init(const CommandLineParameters & commandLineParameters, const inicpp::config & iniconfig);
 
     void printHeader();
-    void getParameters(std::vector< std::unique_ptr< CalculationParameter > > &);
 
     const PartArray & getSystem(){return this->system;}
 
@@ -60,7 +54,6 @@ private:
     double range = 0;
     int seed = 0;
     Vect field;
-    std::vector<std::unique_ptr< CalculationParameter > > parameters;
     PartArray system;
 
     static Vect strToVect(std::string val){

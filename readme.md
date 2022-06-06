@@ -5,6 +5,7 @@ First, make sure that GMP library is installed (https://gmplib.org/).
 ```
 git clone --recurse-submodules https://github.com/uyras/metropolis.git
 cd metropolis
+git checkout probabilitier
 mkdir build && cd build
 cmake ..
 cmake --build .
