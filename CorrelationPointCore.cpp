@@ -1,5 +1,8 @@
 #include "CorrelationPointCore.h"
 
+// @todo Сейчас в correlationNeighbours хранятся все соседи для каждого спина. 
+// Но спин может принадлежать сразу нескольким кореляционным точкам, и тогда будет иметь разных соседей.
+
 CorrelationPointCore::CorrelationPointCore(
         const std::string & parameterId,
         PartArray * prototype,
@@ -12,7 +15,9 @@ _distance(distance),
 _minRange(minRange),
 _maxRange(maxRange),
 cp(0,1024*8),
-cp2(0,2048*8)
+cp2(0,2048*8),
+_histogramEnabled(false),
+_histogramFilename("")
 {
     this->prototypeInit(prototype);
 }
@@ -40,6 +45,10 @@ void CorrelationPointCore::printHeader(unsigned num) const
     printf("##### calculation param #%d #####\n",num);
     printf("# type: correlationpoint\n");
     printf("# id: %s\n",this->parameterId().c_str());
+    if (this->_histogramEnabled)
+        printf("# histogram: enabled (slow)\n");
+    else
+        printf("# histogram: disabled\n");
 
     printf("# distance aroun point: %.2f\n",this->_distance);
     printf("# minimal interaction distance: %.2f\n",this->_minRange);
@@ -84,27 +93,41 @@ bool CorrelationPointCore::init(PartArray * sys)
     correlationNeighbours.resize(sys->size());
     double space2;
 
+    if (this->_histogramEnabled){
+        correlationNeighboursByPoint.resize(X.size());
+        for (auto &cps: this->correlationNeighboursByPoint){
+            cps.resize(sys->size());
+        }
+    }
+
     //first find the spins around each point
     double dist2 = this->_distance * this->_distance;
+    unsigned maxSpinsInPoint=0;
     for (int i=0; i<X.size(); ++i){
         Vect point = Vect(X[i],Y[i],0);
+        unsigned spinsInCurrentPoint = 0;
         for (auto part: sys->parts){
             space2 = point.space_2(part->pos);
             if (space2<=dist2){
                 this->correlationPointSpins[i].push_front(part);
+                ++spinsInCurrentPoint;
                 spinsInPoint += 1;
             }
         }
-        if (std::distance(this->correlationPointSpins[i].begin(),
-                          this->correlationPointSpins[i].end())==0){
+        if (spinsInCurrentPoint==0){
             throw(std::invalid_argument("# Corellation point "+std::to_string(i)+" has no spins around. Check your config."));
         }
+        spinsInPoint += spinsInCurrentPoint;
+        if (spinsInCurrentPoint > maxSpinsInPoint)
+            maxSpinsInPoint = spinsInCurrentPoint;
     }
     spinsInPoint /= this->pointCount();
 
     const double minr2 = this->_minRange * this->_minRange;
     const double maxr2 = this->_maxRange * this->_maxRange;
     double eTemp;
+
+    int i=0;
     //find neighbours in all corellation points
     for (auto cps: this->correlationPointSpins){
         for (auto partA: cps){
@@ -116,6 +139,10 @@ bool CorrelationPointCore::init(PartArray * sys)
                 if (space2>=minr2 && space2<=maxr2){
                     this->correlationNeighbours[partA->Id()].push_front(partB);
                     ++correlationPairsNum;
+                    
+                    if (this->_histogramEnabled){
+                        this->correlationNeighboursByPoint[i][partA->Id()].push_front(partB);
+                    }
 
                     //В матрицу надо помещать энергии только в неперевернутых состояниях
                     eTemp = hamiltonianDipolar(partA,partB)*-1; 
@@ -129,20 +156,26 @@ bool CorrelationPointCore::init(PartArray * sys)
                 }
             }
         }
+        ++i;
     }
     this->correlationPairsNum/=2;
 
     if (_debug) {
         for (auto partA : sys->parts){
-            fprintf(stderr,"# neigh for %u: ",partA->Id());
+            fprintf(stderr,"# neigh for %zd: ",partA->Id());
             for (auto partB : this->correlationNeighbours[partA->Id()]){
-                fprintf(stderr,"%u,",partB->Id());
+                fprintf(stderr,"%zd,",partB->Id());
             }
             fprintf(stderr,"\n");
         }
     }
 
     this->cpOld = this->getFullTotal(this->sys);
+
+    if (this->_histogramEnabled){
+        dos.resize(-maxSpinsInPoint,maxSpinsInPoint,maxSpinsInPoint*2+1);
+        dos.clear();
+    }
 
     return true;
 }
@@ -163,6 +196,20 @@ void CorrelationPointCore::iterate(unsigned id){
 void CorrelationPointCore::incrementTotal(){
     this->cp += double(this->cpOld)/this->pointCount();
     this->cp2 += double(this->cpOld * this->cpOld)/(this->pointCount() * this->pointCount());
+
+    if (this->_histogramEnabled){
+        int i=0;
+        for (auto cps: this->correlationPointSpins){
+            int cpVal = 0;
+            for (auto partA: cps){
+                for (auto partB: this->correlationNeighboursByPoint[i][partA->Id()]){
+                    cpVal += this->method(partA,partB);
+                }
+            }
+            this->dos[cpVal]++;
+            ++i;
+        }
+    }
 }
 
 long CorrelationPointCore::getFullTotal(const PartArray * _sys) const
@@ -179,4 +226,12 @@ long CorrelationPointCore::getFullTotal(const PartArray * _sys) const
 short CorrelationPointCore::method(const Part* partA, const Part* partB) const
 {
     return ((partA->state ^ partB->state)?-1:+1) * this->correlationValues.at(std::make_pair(partA->Id(),partB->Id()));
+}
+
+void CorrelationPointCore::save(unsigned num){
+    if (this->_histogramEnabled && !this->_histogramFilename.empty()){
+        std::string fname = _histogramFilename;
+        fname.replace(fname.find("$"),1,std::to_string(num));
+        dos.save(fname);
+    }
 }

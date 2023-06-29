@@ -40,7 +40,7 @@ ConfigManager ConfigManager::init(
         if (sect.contains("size")) {
             ConfigManager::size =
              ConfigManager::strToVect(sect["size"].get<inicpp::string_ini_t>());
-        } else {
+        } else if (tmp.pbc) {
             throw std::invalid_argument("You have to set the \"size\" parameter when using boundaries=periodic");
         }
         
@@ -141,6 +141,12 @@ ConfigManager ConfigManager::init(
                         sect["maxrange"].get<inicpp::float_ini_t>());
                 //core._methodVar = m;
                 if (setDebug) core->setDebug();
+
+                // if need to save the histogram to the file
+                if (sect.contains("histogram") && sect["histogram"].get<inicpp::boolean_ini_t>()==true){
+                    core->enableHistogram("histogram_"+parameterId+"_$.txt"); //replace dollar by number in time of saving
+                }
+
                 tmp.parameters.push_back(std::move(core));
 
         } else if (parameterName == "magnetisation") {
@@ -227,7 +233,7 @@ void ConfigManager::printHeader()
     printf("#        MC: %u heatup, %u compute steps\n",this->heatup,this->calculate);
     printf("#   threads: %d\n",threadCount);
     printf("#     rseed: %d+<temperature number>\n",this->seed);
-    printf("#    temps.: %d pcs. from %e to %e\n",
+    printf("#    temps.: %zd pcs. from %e to %e\n",
         temperatures.size(),
         std::min_element(temperatures.begin(),temperatures.end()).operator*(),
         std::max_element(temperatures.begin(),temperatures.end()).operator*());
@@ -235,7 +241,7 @@ void ConfigManager::printHeader()
     for (int tt=1; tt<temperatures.size(); ++tt)
         printf(",%e",temperatures[tt]);
     printf("\n");
-    printf("#   params.: %d\n",this->parameters.size());
+    printf("#   params.: %zd\n",this->parameters.size());
     printf("#\n");
 
     unsigned i=0;

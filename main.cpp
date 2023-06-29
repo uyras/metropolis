@@ -236,7 +236,7 @@ int main(int argc, char* argv[])
                     if (phase==1){
                         e += eOld;
                         e2 += eOld*eOld;
-                        for (auto &cp: calculationParameters){
+                        for (auto &cp: calculationParameters) {
                                 cp->incrementTotal();
                         }
                     }
@@ -268,6 +268,10 @@ int main(int argc, char* argv[])
                 printf(" %f",rtime/1000.);
                 printf("\n");
                 fflush(stdout);
+                for (auto &cp: calculationParameters){
+                    cp->save(tt);
+                }
+                
             }
         }
         
@@ -295,6 +299,6 @@ int main(int argc, char* argv[])
     printf("#\n");
     int64_t time_total = std::chrono::duration_cast<std::chrono::milliseconds>(time_end-time_start).count();
     double speedup = double(time_proc_total)/time_total;
-    printf("# total time: %fs, speedup: %f%, efficiency: %f%\n",time_total/1000., speedup*100, speedup/config.threadCount*100 );
+    printf("# total time: %fs, speedup: %f%%, efficiency: %f%%\n",time_total/1000., speedup*100, speedup/config.threadCount*100 );
 
 }

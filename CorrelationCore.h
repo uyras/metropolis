@@ -6,6 +6,7 @@
 #include <map>
 #include <gmpxx.h>
 #include "PartArray.h"
+#include "dos2.h"
 #include "CalculationParameter.h"
 
 class CorrelationCore: public CalculationParameter

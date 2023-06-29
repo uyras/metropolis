@@ -3,8 +3,6 @@
 
 #include <argumentum/argparse.h>
 
-//using namespace argumentum;
-
 class CommandLineParameters : public argumentum::Options
 {
 public:

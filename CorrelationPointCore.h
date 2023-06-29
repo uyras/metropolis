@@ -7,6 +7,7 @@
 #include <gmpxx.h>
 #include "PartArray.h"
 #include "CalculationParameter.h"
+#include <dos2.h>
 
 class CorrelationPointCore: public CalculationParameter
 {
@@ -14,6 +15,7 @@ class CorrelationPointCore: public CalculationParameter
 public:
     std::vector< std::forward_list < Part* > > correlationPointSpins;
     std::vector< std::forward_list < Part* > > correlationNeighbours;
+    std::vector< std::vector< std::forward_list < Part* > > > correlationNeighboursByPoint; //fills only when histogram enabled
     std::map< std::pair<unsigned, unsigned>, short > correlationValues;
     unsigned correlationPairsNum;
     float spinsInPoint;
@@ -36,6 +38,13 @@ public:
 
     virtual CorrelationPointCore * copy() { return new CorrelationPointCore(*this); }
 
+
+    void enableHistogram(std::string filename) { this->_histogramEnabled = true; this->_histogramFilename = filename; }
+    void disableHistogram(){ this->_histogramEnabled = false; }
+    inline bool histogramEnabled(){ return this->_histogramEnabled; }
+
+    void save(unsigned num);
+
 private:
 
     long getFullTotal(const PartArray * _sys) const;
@@ -51,6 +60,10 @@ private:
     mpf_class cp2;
     std::vector<double> X;
     std::vector<double> Y;
+
+    bool _histogramEnabled;
+    std::string _histogramFilename;
+    Dos2<int> dos;
 };
 
 #endif //CORELLATIONPOINTCORE_H
