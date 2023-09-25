@@ -74,10 +74,11 @@ private:
                 auto pos = val.find('|');
                 if (pos!=std::string::npos){
                     double x = stod(val.substr(0,pos));
-                    double y = stod(val.substr(pos+1));
-                    target = Vect(x,y,0);
+                    double y = stod(val.substr(pos+1,pos+pos+1));
+                    double z = stod(val.substr(pos+pos+2));
+                    target = Vect(x,y,z);
                 } else {
-                    throw(std::invalid_argument("Vector format is x|y"));
+                    throw(std::invalid_argument("Vector format is x|y|z"));
                 }
             }
         }
