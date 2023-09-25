@@ -45,9 +45,10 @@ void MagnetisationCore::printHeader(unsigned num) const
 
     printf("# id: %s\n",this->parameterId().c_str());
 
-    printf("# magnetisation vector: (%g|%g); initial value %g\n",
+    printf("# magnetisation vector: (%g|%g|%g); initial value %g\n",
         this->vector.x,
         this->vector.y,
+        this->vector.z,
         this->getFullTotal(this->prototype)/this->spins.size());
     printf("# saturation magnetisation / N: %g\n", saturation);
     printf("# spins: ");

@@ -71,13 +71,25 @@ private:
             if (val=="y" || val=="Y") 
                 target = Vect(0,1,0); 
             else {
-                auto pos = val.find('|');
-                if (pos!=std::string::npos){
-                    double x = stod(val.substr(0,pos));
-                    double y = stod(val.substr(pos+1));
-                    target = Vect(x,y,0);
-                } else {
-                    throw(std::invalid_argument("Vector format is x|y"));
+                if (val=="z" || val=="Z")
+                    target = Vect(0,0,1);
+                else
+                {
+                    auto pos = val.find('|');
+                    if (pos!=std::string::npos){
+                        double x = stod(val.substr(0,pos));
+                        auto pos_second = val.find('|',pos+1);
+                        if (pos_second!=std::string::npos){
+                            double y = stod(val.substr(pos+1,pos_second));
+                            double z = stod(val.substr(pos_second+1));
+                            target = Vect(x,y,z);
+                        } else {
+                            double y = stod(val.substr(pos+1));
+                            target = Vect(x,y,0);
+                        }
+                    } else {
+                        throw(std::invalid_argument("Vector format is x|y or x|y|z"));
+                    }
                 }
             }
         }

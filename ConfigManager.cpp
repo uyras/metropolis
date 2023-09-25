@@ -223,10 +223,10 @@ void ConfigManager::printHeader()
 
     printf("#   sysfile: %s\n",this->sysfile.c_str());
     printf("#    system: %d spins, %f interaction range, %f avg. neighbours\n",this->system.size(),this->range, avgNeighb);
-    printf("#   physics: ext.filed: (%g,%g), hamiltonian: dipole, space: 2D\n",this->field.x,this->field.y);
+    printf("#   physics: ext.filed: (%g,%g,%g), hamiltonian: dipole, space: 2D\n",this->field.x,this->field.y,this->field.z);
     printf("#    bounds: ");
     if (this->isPBC()){
-        printf("periodic, system size: (%g,%g)\n",ConfigManager::size.x,ConfigManager::size.y);
+        printf("periodic, system size: (%g,%g,%g)\n",ConfigManager::size.x,ConfigManager::size.y,ConfigManager::size.z);
     } else {
         printf("open\n");
     }
@@ -303,14 +303,14 @@ double hamiltonianDipolarPBC(Part *a, Part *b)
 {
     Vect rij = radiusPBC(b->pos,a->pos);
     double r2, r, r5,E;
-    r2 = rij.x * rij.x + rij.y * rij.y;
+    r2 = rij.x * rij.x + rij.y * rij.y + rij.z * rij.z;
     r = sqrt(r2); //трудное место, заменить бы
     r5 = r2 * r2 * r; //радиус в пятой
     
     E = //энергия считается векторным методом, так как она не нужна для каждой оси
-            (( (a->m.x * b->m.x + a->m.y * b->m.y) * r2)
+            (( (a->m.x * b->m.x + a->m.y * b->m.y + a->m.z * b->m.z) * r2)
                 -
-                (3 * (b->m.x * rij.x + b->m.y * rij.y) * (a->m.x * rij.x + a->m.y * rij.y)  )) / r5;
+                (3 * (b->m.x * rij.x + b->m.y * rij.y + b->m.z * rij.z) * (a->m.x * rij.x + a->m.y * rij.y + a->m.z * rij.z)  )) / r5;
     return E;
 }
 
@@ -329,6 +329,14 @@ Vect radiusPBC(const Vect& a, const Vect& b){
             dist.y += ConfigManager::size.y;
         } else {
             dist.y -= ConfigManager::size.y;
+        }
+    }
+
+    if (fabs(dist.z) > ConfigManager::size.z/2){
+        if (a.z < b.z){
+            dist.z += ConfigManager::size.z;
+        } else {
+            dist.z -= ConfigManager::size.z;
         }
     }
     
