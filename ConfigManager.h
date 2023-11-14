@@ -41,6 +41,7 @@ public:
     unsigned N() const { return this->system.size(); }
     unsigned getHeatup() { return this->heatup; }
     unsigned getCalculate() { return this->calculate; }
+    std::string getSysfile() { return this->sysfile; }
     const Vect & getField() const { return this->field; }
     bool isPBC() const { return this->pbc; }
 
