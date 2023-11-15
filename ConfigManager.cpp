@@ -4,11 +4,12 @@ Vect ConfigManager::size;
 
 bool ConfigManager::check_config()
 {
+
     //check main parameters
     {
         if (this->calculate<1){
             cerr<<"error! --calculate should be greather than 0!"<<endl;
-            return 0;
+            return false;
         }
 
     }
@@ -50,6 +51,9 @@ ConfigManager ConfigManager::init(
             tmp.field.setXYZ(0,0,0);
 
         if (sect.contains("debug")) tmp.debug = sect["debug"].get<inicpp::boolean_ini_t>();
+
+        if (sect.contains("restart")) tmp.restart = sect["restart"].get<inicpp::boolean_ini_t>();
+        if (sect.contains("restartThreshold")) tmp.restartThreshold = sect["restartThreshold"].get<inicpp::float_ini_t>();
     }
     
     if (!commandLineParameters.sysfilename.empty())
@@ -199,7 +203,6 @@ ConfigManager ConfigManager::init(
         }
     }
 
-
     return tmp;
 }
 
@@ -219,11 +222,17 @@ void ConfigManager::printHeader()
         avgNeighb += this->system.neighbourSize(i);
     avgNeighb /= this->system.size();
 
+    double e = system.E();
+    for (auto p : this->system.parts)
+    {
+        e -= p->m.scalar(field);
+    }
+
     printf("# Metropolis algorithm for calculating heating capacity v%s\n",METROPOLIS_VERSION);
 
     printf("#   sysfile: %s\n",this->sysfile.c_str());
     printf("#    system: %d spins, %f interaction range, %f avg. neighbours\n",this->system.size(),this->range, avgNeighb);
-    printf("#   physics: ext.filed: (%g,%g,%g), hamiltonian: dipole, space: 2D\n",this->field.x,this->field.y,this->field.z);
+    printf("#   physics: energy: %g, ext.filed: (%g,%g,%g), hamiltonian: dipole, space: 2D\n",e,this->field.x,this->field.y,this->field.z);
     printf("#    bounds: ");
     if (this->isPBC()){
         printf("periodic, system size: (%g,%g,%g)\n",ConfigManager::size.x,ConfigManager::size.y,ConfigManager::size.z);
@@ -231,6 +240,12 @@ void ConfigManager::printHeader()
         printf("open\n");
     }
     printf("#        MC: %u heatup, %u compute steps\n",this->heatup,this->calculate);
+    if (this->isRestart())
+        printf("#   restart: enabled, delta E threshold: %g*energy=%g\n",
+            this->getRestartThreshold(),
+            fabs(this->getRestartThreshold()*e));
+    else
+        printf("#   restart: disabled\n");
     printf("#   threads: %d\n",threadCount);
     printf("#     rseed: %d+<temperature number>\n",this->seed);
     printf("#    temps.: %zd pcs. from %e to %e\n",
@@ -259,6 +274,16 @@ void ConfigManager::printHeader()
     printf(" %d:time,s",i);
     printf("\n");
     fflush(stdout);
+}
+
+void ConfigManager::applyState(string s)
+{ 
+    this->system.state.fromString(s);
+    this->system.state.hardReset();
+    this->system.setInteractionRange(this->range);
+    if (this->isPBC()){
+        ConfigManager::setPBCEnergies(this->system);
+    } 
 }
 
 void ConfigManager::getParameters(std::vector< std::unique_ptr< CalculationParameter > > & calculationParameters)

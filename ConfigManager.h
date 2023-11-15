@@ -34,6 +34,7 @@ public:
     void getParameters(std::vector< std::unique_ptr< CalculationParameter > > &);
 
     const PartArray & getSystem(){return this->system;}
+    void applyState(string s);
 
     std::vector<double> temperatures;
 
@@ -44,6 +45,8 @@ public:
     std::string getSysfile() { return this->sysfile; }
     const Vect & getField() const { return this->field; }
     bool isPBC() const { return this->pbc; }
+    bool isRestart() const {return this->restart; }
+    double getRestartThreshold() const {return this->restartThreshold; }
 
     bool debug = false;
     int threadCount=0;
@@ -61,6 +64,8 @@ private:
     double range = 0;
     int seed = 0;
     Vect field;
+    bool restart = true;
+    double restartThreshold = 1e-3;
     std::vector<std::unique_ptr< CalculationParameter > > parameters;
     PartArray system;
 

@@ -23,9 +23,20 @@
 #include "CalculationParameter.h"
 #include <inicpp/inicpp.h>
 
-int main(int argc, char *argv[])
-{
-	auto time_start = std::chrono::steady_clock::now();
+struct monteCarloStatistics {
+	double initEnergy; 
+	double lowerEnergy;
+	double deltaEnergy;
+	bool foundLowerEnergy;
+	int temperatureOfLowerEnergy;
+	string lowerEnergyState;
+	vector<string> finalStates;
+	vector<double> finalEnergies;
+	vector<std::chrono::time_point<std::chrono::steady_clock>> temperature_times_start;
+	vector<std::chrono::time_point<std::chrono::steady_clock>> temperature_times_end;
+};
+
+std::optional<ConfigManager> readParameters(int argc, char *argv[]){
 
 	// get file name
 	bool parse_failed = false;
@@ -50,7 +61,7 @@ int main(int argc, char *argv[])
 			std::cout << endl;
 			std::cout << example_string << endl;
 		}
-		return 1;
+		return {};
 	}
 
 	inicpp::config iniconfig;
@@ -65,44 +76,47 @@ int main(int argc, char *argv[])
 	if (!configError)
 	{
 		cerr << "Program stopped with error" << endl;
-		return 1;
+		return {};
+	} else {
+		config.printHeader();
 	}
 
-	config.printHeader();
+	return config;
+}
 
-	double startEnergy;
-	{
+monteCarloStatistics montecarlo(ConfigManager &config){
+	unsigned temperatureCount = config.temperatures.size();
+
+	monteCarloStatistics statData;
+	statData.foundLowerEnergy = false;
+	statData.finalStates.resize(temperatureCount);
+	statData.finalEnergies.resize(temperatureCount);
+	statData.temperature_times_start.resize(temperatureCount);
+	statData.temperature_times_end.resize(temperatureCount);
+
+	{ // block to get initial energy
 		const Vect field = config.getField();
 		PartArray sys(config.getSystem());
 		if (config.isPBC())
 		{
 			ConfigManager::setPBCEnergies(sys);
 		}
-		startEnergy = sys.E();
+		statData.initEnergy = sys.E();
 		for (auto p : sys.parts)
 		{
-			startEnergy -= p->m.scalar(field);
+			statData.initEnergy -= p->m.scalar(field);
 		}
+		statData.lowerEnergy = statData.initEnergy;
+		statData.deltaEnergy = fabs(statData.initEnergy * config.getRestartThreshold());
 	}
-	printf("\n\n\n%f\n\n\n", startEnergy);
 
-	vector<string> finalStates(config.temperatures.size());
-	vector<double> finalEnergies(finalStates.size());
-	vector<std::chrono::time_point<std::chrono::steady_clock>> temperature_times_start(finalStates.size());
-	vector<std::chrono::time_point<std::chrono::steady_clock>> temperature_times_end(finalStates.size());
-
-	std::string filename = config.getSysfile();
-
-	int abort = 0;
 #pragma omp parallel
 	{
 #pragma omp for
 		for (int tt = 0; tt < config.temperatures.size(); ++tt)
 		{
-
 			{
-
-				temperature_times_start[tt] = std::chrono::steady_clock::now();
+				statData.temperature_times_start[tt] = std::chrono::steady_clock::now();
 
 				std::vector<std::unique_ptr<CalculationParameter>> calculationParameters;
 				config.getParameters(calculationParameters);
@@ -114,10 +128,11 @@ int main(int argc, char *argv[])
 				uniform_int_distribution<int> intDistr(0, config.N() - 1); // including right edge
 				uniform_real_distribution<double> doubleDistr(0, 1);	   // right edge is not included
 
-				/////////// import the system
+				
 				mpf_class e(0, 1024 * 8);
 				mpf_class e2(0, 2048 * 8);
 
+				/////////// duplicate the system
 				PartArray sys(config.getSystem());
 				if (config.isPBC())
 				{
@@ -178,7 +193,6 @@ int main(int argc, char *argv[])
 
 					for (unsigned step = 0; step < calculateSteps; ++step)
 					{
-
 						// full recalculte energy every to avoid FP error collection
 						if (step != 0 && step % FULL_REFRESH_EVERY == 0)
 						{
@@ -188,98 +202,107 @@ int main(int argc, char *argv[])
 							{
 								eOld -= p->m.scalar(field);
 							}
+
+							if (statData.foundLowerEnergy){
+								//cancel the calculations
+								phase = 1; //force go to the phase
+								break; //break up the main for loop
+							}
 						}
 
 						for (unsigned sstep = 0; sstep < N; ++sstep)
 						{
-							if (!abort)
-							{
 
-								if ((eOld - startEnergy) < -1e-5)
+							dE = 0;
+							swapNum = intDistr(generator);
+							Part *partA = sys.getById(swapNum);
+
+							{ // get dE
+								unsigned j = 0;
+
+								if (sys.interactionRange() != 0.0)
 								{
-									abort = 1;
-									sys.save("gs.mfsys");
-								}
-
-								dE = 0;
-								swapNum = intDistr(generator);
-								Part *partA = sys.getById(swapNum);
-
-								{ // get dE
-									unsigned j = 0;
-
-									if (sys.interactionRange() != 0.0)
+									for (Part *neigh : sys.neighbours[swapNum])
 									{
-										for (Part *neigh : sys.neighbours[swapNum])
+										if (neigh->state == partA->state) // assume it is rotated, inverse state in mind
+											dE -= 2. * sys.eAt(swapNum, j);
+										else
+											dE += 2. * sys.eAt(swapNum, j);
+										++j;
+									}
+								}
+								else
+								{
+									for (Part *neigh : sys.parts)
+									{
+										if (partA != neigh)
 										{
-											if (neigh->state == partA->state) // assume it is rotated, inverse state in mind
+											if (neigh->state == partA->state)
 												dE -= 2. * sys.eAt(swapNum, j);
 											else
 												dE += 2. * sys.eAt(swapNum, j);
 											++j;
 										}
 									}
-									else
-									{
-										for (Part *neigh : sys.parts)
-										{
-											if (partA != neigh)
-											{
-												if (neigh->state == partA->state)
-													dE -= 2. * sys.eAt(swapNum, j);
-												else
-													dE += 2. * sys.eAt(swapNum, j);
-												++j;
-											}
-										}
-									}
-
-									dE += 2 * partA->m.scalar(field);
 								}
 
-								acceptSweep = false;
-								if (dE < 0 || t == 0)
+								dE += 2 * partA->m.scalar(field);
+							}
+
+							acceptSweep = false;
+							if (dE < 0 || t == 0)
+							{
+								acceptSweep = true;
+							}
+							else
+							{
+								p = exp(-dE / t);
+								randNum = doubleDistr(generator);
+								if (randNum <= p)
 								{
 									acceptSweep = true;
 								}
-								else
+							}
+
+							if (acceptSweep)
+							{
+								sys.parts[swapNum]->rotate();
+								eOld += dE;
+
+								if (phase == 1)
 								{
-									p = exp(-dE / t);
-									randNum = doubleDistr(generator);
-									if (randNum <= p)
+									for (auto &cp : calculationParameters)
 									{
-										acceptSweep = true;
+										cp->iterate(partA->Id());
 									}
 								}
 
-								if (acceptSweep)
+								if (config.debug)
 								{
-									sys.parts[swapNum]->rotate();
-									eOld += dE;
+									// recalc energy
+									double eTmp = sys.E();
 
-									if (phase == 1)
+									// add external field
+									for (auto pt : sys.parts)
 									{
-										for (auto &cp : calculationParameters)
-										{
-											cp->iterate(partA->Id());
-										}
+										eTmp -= pt->m.scalar(field);
 									}
 
-									if (config.debug)
+									if (fabs(eTmp - eOld) > 0.00001)
 									{
-										// recalc energy
-										double eTmp = sys.E();
+										cerr << "# (dbg main#" << phase << ") energy is different. iterative: " << eOld << "; actual: " << eTmp << endl;
+									}
+								}
 
-										// add external field
-										for (auto pt : sys.parts)
-										{
-											eTmp -= pt->m.scalar(field);
-										}
-
-										if (fabs(eTmp - eOld) > 0.00001)
-										{
-											cerr << "# (dbg main#" << phase << ") energy is different. iterative: " << eOld << "; actual: " << eTmp << endl;
-										}
+								
+								if (config.isRestart() && (eOld - statData.lowerEnergy) < -statData.deltaEnergy) // if found lower energy
+								{
+#pragma omp critical
+									{
+										statData.foundLowerEnergy = 1;
+										statData.lowerEnergy = eOld;
+										statData.lowerEnergyState = sys.state.toString();
+										statData.temperatureOfLowerEnergy = tt;
 									}
 								}
 							}
@@ -298,38 +321,70 @@ int main(int argc, char *argv[])
 					}
 				}
 
-				e /= config.getCalculate();
-				e2 /= config.getCalculate();
+				if (!statData.foundLowerEnergy) {
+					e /= config.getCalculate();
+					e2 /= config.getCalculate();
 
-				mpf_class cT = (e2 - (e * e)) / (t * t * N);
+					mpf_class cT = (e2 - (e * e)) / (t * t * N);
 
-				finalStates[tt] = sys.state.toString();
-				finalEnergies[tt] = eOld;
-				temperature_times_end[tt] = std::chrono::steady_clock::now();
+					statData.finalStates[tt] = sys.state.toString();
+					statData.finalEnergies[tt] = eOld;
+					statData.temperature_times_end[tt] = std::chrono::steady_clock::now();
 
-#pragma omp critical
-				{
-					gmp_printf("%e %.30Fe %.30Fe %.30Fe %d %d",
-							   t, cT.get_mpf_t(), e.get_mpf_t(), e2.get_mpf_t(),
-							   omp_get_thread_num(), trseed);
-					for (auto &cp : calculationParameters)
+	#pragma omp critical
 					{
-						gmp_printf(" %.30Fe %.30Fe",
-								   cp->getTotal(config.getCalculate()).get_mpf_t(),
-								   cp->getTotal2(config.getCalculate()).get_mpf_t());
-					}
-					auto rtime = std::chrono::duration_cast<std::chrono::milliseconds>(temperature_times_end[tt] - temperature_times_start[tt]).count();
-					printf(" %f", rtime / 1000.);
-					printf("\n");
-					fflush(stdout);
-					for (auto &cp : calculationParameters)
-					{
-						cp->save(tt);
+						gmp_printf("%e %.30Fe %.30Fe %.30Fe %d %d",
+								t, cT.get_mpf_t(), e.get_mpf_t(), e2.get_mpf_t(),
+								omp_get_thread_num(), trseed);
+						for (auto &cp : calculationParameters)
+						{
+							gmp_printf(" %.30Fe %.30Fe",
+									cp->getTotal(config.getCalculate()).get_mpf_t(),
+									cp->getTotal2(config.getCalculate()).get_mpf_t());
+						}
+						auto rtime = std::chrono::duration_cast<std::chrono::milliseconds>(statData.temperature_times_end[tt] - statData.temperature_times_start[tt]).count();
+						printf(" %f", rtime / 1000.);
+						printf("\n");
+						fflush(stdout);
+						for (auto &cp : calculationParameters)
+						{
+							cp->save(tt);
+						}
 					}
 				}
 			}
 		}
 	}
+
+	return statData;
+} 
+
+int main(int argc, char *argv[])
+{
+	auto time_start = std::chrono::steady_clock::now();
+
+	auto config = readParameters(argc,argv);
+	if (!config){
+		return 0;
+	}
+
+	bool programRestarted = false;
+	monteCarloStatistics statData;
+	do {
+		statData = montecarlo(*config);
+		if (statData.foundLowerEnergy){
+			config->applyState(statData.lowerEnergyState);
+			printf("# -- restart MC: found lower energy %g < %g, at T%d=%g new state: %s\n",
+			   statData.lowerEnergy,
+			   statData.initEnergy,
+			   statData.temperatureOfLowerEnergy,
+			   config->temperatures[statData.temperatureOfLowerEnergy],
+			   statData.lowerEnergyState.c_str());
+			programRestarted = true;
+		}
+	} while(statData.foundLowerEnergy);
+
+	
 
 	auto time_end = std::chrono::steady_clock::now();
 
@@ -338,24 +393,29 @@ int main(int argc, char *argv[])
 	printf("###########  end of calculations #############\n");
 	printf("#\n");
 	printf("###########     final notes:     #############\n");
-	for (int tt = 0; tt < config.temperatures.size(); ++tt)
+	for (int tt = 0; tt < config->temperatures.size(); ++tt)
 	{
-		auto rtime = std::chrono::duration_cast<std::chrono::milliseconds>(temperature_times_end[tt] - temperature_times_start[tt]).count();
+		auto rtime = std::chrono::duration_cast<std::chrono::milliseconds>(statData.temperature_times_end[tt] - statData.temperature_times_start[tt]).count();
 		printf("#%d, time=%fs, T=%e, E=%e, final state: %s\n",
 			   tt,
 			   rtime / 1000.,
-			   config.temperatures[tt],
-			   finalEnergies[tt],
-			   finalStates[tt].c_str());
+			   config->temperatures[tt],
+			   statData.finalEnergies[tt],
+			   statData.finalStates[tt].c_str());
 		time_proc_total += rtime;
 	}
 
 	printf("#\n");
 	int64_t time_total = std::chrono::duration_cast<std::chrono::milliseconds>(time_end - time_start).count();
 	double speedup = double(time_proc_total) / time_total;
-	printf("# total time: %fs, speedup: %f%%, efficiency: %f%%\n", time_total / 1000., speedup * 100, speedup / config.threadCount * 100);
+	printf("# total time: %fs, speedup: %f%%, efficiency: %f%%\n", time_total / 1000., speedup * 100, speedup / config->threadCount * 100);
 
-	if (abort)
-		return 100;
+	if (programRestarted){
+		printf("##### Warning! The program was restarted because it found the lower energy.\n");
+		printf("##### But the console output before this moment can not be wiped!\n");
+		printf("##### Remove all the result lines before the last line starting with:\n");
+		printf("# -- restart MC:");
+	}
+
 	return 0;
 }
