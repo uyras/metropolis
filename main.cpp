@@ -36,6 +36,14 @@ struct monteCarloStatistics {
 	vector<std::chrono::time_point<std::chrono::steady_clock>> temperature_times_end;
 };
 
+std::string xorstr(std::string s1,std::string s2){
+	std::string s(s1);
+	for (int i=0; i<s1.size(); i++){
+		s[i] = (s1[i]==s2[i])?'0':'1';
+	}
+	return s;
+}
+
 std::optional<ConfigManager> readParameters(int argc, char *argv[]){
 
 	// get file name
@@ -370,6 +378,7 @@ int main(int argc, char *argv[])
 
 	bool programRestarted = false;
 	monteCarloStatistics statData;
+	std::string finalState = config->getSystem().state.toString();
 	do {
 		statData = montecarlo(*config);
 		if (statData.foundLowerEnergy){
@@ -381,6 +390,7 @@ int main(int argc, char *argv[])
 			   config->temperatures[statData.temperatureOfLowerEnergy],
 			   statData.lowerEnergyState.c_str());
 			programRestarted = true;
+			finalState = xorstr(finalState,statData.lowerEnergyState);
 		}
 	} while(statData.foundLowerEnergy);
 
@@ -411,10 +421,16 @@ int main(int argc, char *argv[])
 	printf("# total time: %fs, speedup: %f%%, efficiency: %f%%\n", time_total / 1000., speedup * 100, speedup / config->threadCount * 100);
 
 	if (programRestarted){
-		printf("##### Warning! The program was restarted because it found the lower energy.\n");
+		printf("\n##### Warning! The program was restarted because it found the lower energy.\n");
 		printf("##### But the console output before this moment can not be wiped!\n");
 		printf("##### Remove all the result lines before the last line starting with:\n");
-		printf("# -- restart MC:");
+		printf("# -- restart MC:\n#\n");
+
+		printf("# configuration of the lowest energy: %s\n",finalState.c_str());
+		if (!config->getNewGSFilename().empty()){
+			config->saveSystem(config->getNewGSFilename());
+			printf("# system with found lowest energy is saved to file %s\n",config->getNewGSFilename().c_str());
+		}
 	}
 
 	return 0;

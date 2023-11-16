@@ -34,6 +34,7 @@ public:
     void getParameters(std::vector< std::unique_ptr< CalculationParameter > > &);
 
     const PartArray & getSystem(){return this->system;}
+    void saveSystem(std::string filename){ return this->system.save(filename); }
     void applyState(string s);
 
     std::vector<double> temperatures;
@@ -47,6 +48,7 @@ public:
     bool isPBC() const { return this->pbc; }
     bool isRestart() const {return this->restart; }
     double getRestartThreshold() const {return this->restartThreshold; }
+    std::string getNewGSFilename() {return this->newGSFilename; }
 
     bool debug = false;
     int threadCount=0;
@@ -66,6 +68,7 @@ private:
     Vect field;
     bool restart = true;
     double restartThreshold = 1e-3;
+    std::string newGSFilename;
     std::vector<std::unique_ptr< CalculationParameter > > parameters;
     PartArray system;
 
