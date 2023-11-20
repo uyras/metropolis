@@ -426,7 +426,7 @@ int main(int argc, char *argv[])
 		printf("##### Remove all the result lines before the last line starting with:\n");
 		printf("# -- restart MC:\n");
 		printf("# Command to delete this lines:\n");
-		printf("#    perl -p0e -i 's/(# 1:T[^\n]+\n).+# -- restart MC: found[^\n]+\n/$1/s'   <filename>\n#\n");
+		printf("#    perl -p0e -i 's/(# 1:T[^\\n]+\\n).+# -- restart MC: found[^\\n]+\\n/$1/s'   <filename>\n#\n");
 
 		printf("# configuration of the lowest energy: %s\n",finalState.c_str());
 		if (!config->getNewGSFilename().empty()){
