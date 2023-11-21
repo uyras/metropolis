@@ -67,7 +67,7 @@ private:
     int seed = 0;
     Vect field;
     bool restart = true;
-    double restartThreshold = 1e-3;
+    double restartThreshold = 1e-6;
     std::string newGSFilename;
     std::vector<std::unique_ptr< CalculationParameter > > parameters;
     PartArray system;

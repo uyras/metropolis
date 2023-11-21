@@ -54,6 +54,7 @@ ConfigManager ConfigManager::init(
 
         if (sect.contains("restart")) tmp.restart = sect["restart"].get<inicpp::boolean_ini_t>();
         if (sect.contains("restartThreshold")) tmp.restartThreshold = sect["restartThreshold"].get<inicpp::float_ini_t>();
+        if (sect.contains("restartthreshold")) tmp.restartThreshold = sect["restartthreshold"].get<inicpp::float_ini_t>();
         if (sect.contains("saveGS")) tmp.newGSFilename = sect["saveGS"].get<inicpp::string_ini_t>();
         if (sect.contains("savegs")) tmp.newGSFilename = sect["savegs"].get<inicpp::string_ini_t>();
     }
