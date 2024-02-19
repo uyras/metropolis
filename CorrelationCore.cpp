@@ -61,9 +61,9 @@ void CorrelationCore::printHeader(unsigned num) const
     if (this->spins.size() == this->prototype->size()){
         printf("All\n");
     } else {
-        printf("%d",this->spins[0]);
+        printf("%lu",this->spins[0]);
         for (int ss=1; ss<this->spins.size(); ++ss){
-            printf(",%d",this->spins[ss]);
+            printf(",%lu",this->spins[ss]);
         }
         printf("\n");
     }
@@ -116,9 +116,9 @@ bool CorrelationCore::init(PartArray * sys)
     if (_debug){
         for (auto partA : this->sys->parts){
             if (!this->correlationNeighbours[partA->Id()].empty()){
-                fprintf(stderr,"# neigh for %u: ",partA->Id());
+                fprintf(stderr,"# neigh for %ld: ",partA->Id());
                 for (auto partB:this->correlationNeighbours[partA->Id()]){
-                    fprintf(stderr,"%u,",partB->Id());
+                    fprintf(stderr,"%ld,",partB->Id());
                 }
                 fprintf(stderr,"\n");
             }

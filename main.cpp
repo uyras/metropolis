@@ -22,6 +22,7 @@
 #include "ConfigManager.h"
 #include "CalculationParameter.h"
 #include <inicpp/inicpp.h>
+#include "misc.h"
 
 struct monteCarloStatistics {
 	double initEnergy; 
@@ -105,9 +106,13 @@ monteCarloStatistics montecarlo(ConfigManager &config){
 	{ // block to get initial energy
 		const Vect field = config.getField();
 		PartArray sys(config.getSystem());
-		if (config.isPBC())
-		{
-			ConfigManager::setPBCEnergies(sys);
+		if (config.isCSV()){
+			ConfigManager::setCSVEnergies(sys);
+		} else {
+			if (config.isPBC())
+			{
+				ConfigManager::setPBCEnergies(sys);
+			}
 		}
 		statData.initEnergy = sys.E();
 		for (auto p : sys.parts)
@@ -142,9 +147,13 @@ monteCarloStatistics montecarlo(ConfigManager &config){
 
 				/////////// duplicate the system
 				PartArray sys(config.getSystem());
-				if (config.isPBC())
-				{
-					ConfigManager::setPBCEnergies(sys);
+				if (config.isCSV()){
+					ConfigManager::setCSVEnergies(sys);
+				} else {
+					if (config.isPBC())
+					{
+						ConfigManager::setPBCEnergies(sys);
+					}
 				}
 
 				// write neighbours and energies
@@ -274,7 +283,7 @@ monteCarloStatistics montecarlo(ConfigManager &config){
 
 							if (acceptSweep)
 							{
-								sys.parts[swapNum]->rotate();
+								sys.parts[swapNum]->rotate(false);
 								eOld += dE;
 
 								if (phase == 1)
@@ -380,7 +389,7 @@ int main(int argc, char *argv[])
 	monteCarloStatistics statData;
 	std::string finalState = config->getSystem().state.toString();
 	do {
-		statData = montecarlo(*config);
+		statData = montecarlo(*config); // запуск самих вычислений
 		if (statData.foundLowerEnergy){
 			config->applyState(statData.lowerEnergyState);
 			printf("# -- restart MC: found lower energy %g < %g, at T%d=%g new state: %s\n",

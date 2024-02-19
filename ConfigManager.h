@@ -16,12 +16,14 @@
 #include "CorrelationPointCore.h"
 #include "MagnetisationCore.h"
 #include "MagnetisationLengthCore.h"
+#include "misc.h"
 
 static const std::map<std::string, unsigned> methods = 
     {{"xor",0},{"energy",1},{"scalar",2}};
 
 
 double hamiltonianDipolarPBC(Part* a, Part* b);
+double hamiltonianDipolarCSV(Part* a, Part* b);
 Vect radiusPBC(const Vect& a, const Vect& b);
 
 class ConfigManager
@@ -46,6 +48,7 @@ public:
     std::string getSysfile() { return this->sysfile; }
     const Vect & getField() const { return this->field; }
     bool isPBC() const { return this->pbc; }
+    bool isCSV() const { return this->_csv;}
     bool isRestart() const {return this->restart; }
     double getRestartThreshold() const {return this->restartThreshold; }
     std::string getNewGSFilename() {return this->newGSFilename; }
@@ -53,14 +56,17 @@ public:
     bool debug = false;
     int threadCount=0;
     static Vect size;
+    static vector < vector < double > > energyTable;
 
     static void setPBCEnergies(PartArray & sys);
+    static void setCSVEnergies(PartArray & sys);
 
 private:
     ConfigManager(){};
 
     std::string sysfile;
     bool pbc = 0;
+    bool _csv = 0;
     unsigned heatup = 0;
     unsigned calculate = 0;
     double range = 0;

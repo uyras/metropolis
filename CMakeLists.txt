@@ -28,6 +28,7 @@ set(METROPOLIS_SRC
 	CorrelationPointCore.cpp 
 	MagnetisationCore.cpp
 	MagnetisationLengthCore.cpp
+	misc.cpp
 )
 
 file(STRINGS examples/example.ini example_string_a)

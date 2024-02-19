@@ -1,6 +1,7 @@
 #include "ConfigManager.h"
 
 Vect ConfigManager::size;
+vector < vector < double > > ConfigManager::energyTable;
 
 bool ConfigManager::check_config()
 {
@@ -72,12 +73,33 @@ ConfigManager ConfigManager::init(
     if (commandLineParameters.temperatures.size()>0)
         tmp.temperatures = commandLineParameters.temperatures;
 
-    
-    tmp.system.load(tmp.sysfile);
-    tmp.system.state.hardReset();
-    tmp.system.setInteractionRange(tmp.range);
-    if (tmp.isPBC()){
-        ConfigManager::setPBCEnergies(tmp.system);
+    if (tmp.sysfile.compare(tmp.sysfile.length()-4,string::npos,".csv") == 0){ //if filename ends with .csv
+        if (tmp.isPBC()) throw(std::invalid_argument("PBC option is not working when you load .csv - files"));
+
+        tmp._csv = true;
+
+        ConfigManager::energyTable = readCSV(tmp.sysfile);
+
+        tmp.system.setInteractionRange(1); //non-zero to avoid problems
+        tmp.system.parts.reserve(ConfigManager::energyTable.size());
+        Part* temp;
+        for (int i=0; i<ConfigManager::energyTable.size(); i++){
+            temp = new Part();
+            temp->pos.setXYZ(0,0,0);
+            temp->m.setXYZ(1,0,0);
+            tmp.system.add(temp);
+        }
+        ConfigManager::setCSVEnergies(tmp.system);
+    } else if (tmp.sysfile.compare(tmp.sysfile.length()-6,string::npos,".mfsys") == 0) { //if filename ends with .mfsys
+        tmp._csv = false;
+        tmp.system.load(tmp.sysfile);
+        tmp.system.state.hardReset();
+        tmp.system.setInteractionRange(tmp.range);
+        if (tmp.isPBC()){
+            ConfigManager::setPBCEnergies(tmp.system);
+        }
+    } else {
+        throw(std::invalid_argument("Workg input file extention. Only mfsys and csv files are supported!"));
     }
 
     for (auto & sect: iniconfig){
@@ -234,13 +256,22 @@ void ConfigManager::printHeader()
     printf("# Metropolis algorithm for calculating heating capacity v%s\n",METROPOLIS_VERSION);
 
     printf("#   sysfile: %s\n",this->sysfile.c_str());
-    printf("#    system: %d spins, %f interaction range, %f avg. neighbours\n",this->system.size(),this->range, avgNeighb);
-    printf("#   physics: energy: %g, ext.filed: (%g,%g,%g), hamiltonian: dipole, space: 2D\n",e,this->field.x,this->field.y,this->field.z);
-    printf("#    bounds: ");
-    if (this->isPBC()){
-        printf("periodic, system size: (%g,%g,%g)\n",ConfigManager::size.x,ConfigManager::size.y,ConfigManager::size.z);
-    } else {
-        printf("open\n");
+    printf("#    system: %d spins, ", this->system.size());
+    if (!this->isCSV()) printf("%f interaction range, ", this->range);
+    printf("%f avg. neighbours\n", avgNeighb);
+    printf("#   physics: energy: %g, ext.filed: (%g,%g,%g), ",e,this->field.x,this->field.y,this->field.z);
+    if (this->isCSV())
+        printf("hamiltonian: csv, ");
+    else
+        printf("hamiltonian: dipole, ");
+    printf("space: 2D\n");
+    if (!this->isCSV()) {
+        printf("#    bounds: ");
+        if (this->isPBC()){
+            printf("periodic, system size: (%g,%g,%g)\n",ConfigManager::size.x,ConfigManager::size.y,ConfigManager::size.z);
+        } else {
+            printf("open\n");
+        }
     }
     printf("#        MC: %u heatup, %u compute steps\n",this->heatup,this->calculate);
     if (this->isRestart())
@@ -369,4 +400,32 @@ Vect radiusPBC(const Vect& a, const Vect& b){
     }
     
     return dist;
+}
+
+void ConfigManager::setCSVEnergies(PartArray & sys)
+{
+    // first update all neighbours
+    sys.neighbours.clear();
+    sys.neighbours.resize(sys.parts.size());
+    auto a = sys.parts.begin();
+    for (auto line : ConfigManager::energyTable){
+        auto b = sys.parts.begin();
+        for (double cell : line){
+            if ( cell != 0.0 ){
+                sys.neighbours[(*a)->Id()].push_front(*b);
+            }
+            b++;
+        }
+        a++;
+    }
+
+    sys.changeSystem();
+
+    //then set the hamiltonian
+    sys.setHamiltonian(hamiltonianDipolarCSV);
+}
+
+double hamiltonianDipolarCSV(Part *b, Part *a)
+{
+    return ConfigManager::energyTable[a->Id()][b->Id()] * a->m.x * b->m.x;
 }
