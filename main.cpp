@@ -156,7 +156,7 @@ monteCarloStatistics montecarlo(ConfigManager &config){
 					}
 				}
 
-				// write neighbours and energies
+				// print neighbours and energies
 				/*sys.E();
 				for (unsigned i=0; i<sys.size(); i++){
 					cout<<i<<": ";

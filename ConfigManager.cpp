@@ -79,8 +79,8 @@ ConfigManager ConfigManager::init(
         tmp._csv = true;
 
         ConfigManager::energyTable = readCSV(tmp.sysfile);
-
-        tmp.system.setInteractionRange(1); //non-zero to avoid problems
+        tmp.range = 1;
+        tmp.system.setInteractionRange(tmp.range); //non-zero to avoid problems
         tmp.system.parts.reserve(ConfigManager::energyTable.size());
         Part* temp;
         for (int i=0; i<ConfigManager::energyTable.size(); i++){
@@ -315,9 +315,14 @@ void ConfigManager::applyState(string s)
     this->system.state.fromString(s);
     this->system.state.hardReset();
     this->system.setInteractionRange(this->range);
-    if (this->isPBC()){
-        ConfigManager::setPBCEnergies(this->system);
-    } 
+    if (this->isCSV()){
+        ConfigManager::setCSVEnergies(this->system);
+    } else {
+        if (this->isPBC())
+        {
+            ConfigManager::setPBCEnergies(this->system);
+        }
+    }
 }
 
 void ConfigManager::getParameters(std::vector< std::unique_ptr< CalculationParameter > > & calculationParameters)
