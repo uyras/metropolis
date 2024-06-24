@@ -334,6 +334,10 @@ monteCarloStatistics montecarlo(ConfigManager &config){
 							{
 								cp->incrementTotal();
 							}
+
+							if (config.getSaveStates()>0 && step % config.getSaveStates() == 0){
+								sys.save( config.getSaveStateFileName(tt,step) );
+							}
 						}
 					}
 				}

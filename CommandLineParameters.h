@@ -14,6 +14,7 @@ public:
     int rseed;                   // random seed value
     double iRange;                    // interaction range
     bool showExample;
+    int saveStates;
 
 protected:
     void add_parameters(argumentum::ParameterConfig &params) override
@@ -45,6 +46,11 @@ protected:
                 in this case it will be created several threads for each temperature.\
                 Another variant is to save temperatures to the text file, \
                 one temperature per line and use this as: metropolis @param.txt");
+        params.add_parameter(saveStates,"","--save").maxargs(1).absent(0).metavar("N")
+            .help("Enable saving system configurations every N-th MC step. \
+                Dont work on heatup phase. Saves only on calculate. \
+                Default value is 0 means do not save the data.\
+                File name is \"<input filename>_<temperature_number>_<step>.mfsys\"");
         params.add_parameter(showExample,"-e","--example")
             .help("Print out the example of ini-file and exit.");
         params.add_default_help_option();

@@ -41,6 +41,7 @@ public:
 
     std::vector<double> temperatures;
 
+
     int getSeed() const { return this->seed; }
     unsigned N() const { return this->system.size(); }
     unsigned getHeatup() { return this->heatup; }
@@ -52,6 +53,8 @@ public:
     bool isRestart() const {return this->restart; }
     double getRestartThreshold() const {return this->restartThreshold; }
     std::string getNewGSFilename() {return this->newGSFilename; }
+    inline unsigned getSaveStates() { return this->saveStates; }
+    std::string getSaveStateFileName(int temperature, int step){ return this->saveStateFileBasename+"_"+std::to_string(temperature)+"_"+std::to_string(step)+".mfsys"; }
 
     bool debug = false;
     int threadCount=0;
@@ -74,6 +77,8 @@ private:
     Vect field;
     bool restart = true;
     double restartThreshold = 1e-6;
+    unsigned saveStates = 0;
+    std::string saveStateFileBasename;
     std::string newGSFilename;
     std::vector<std::unique_ptr< CalculationParameter > > parameters;
     PartArray system;

@@ -102,6 +102,10 @@ ConfigManager ConfigManager::init(
         throw(std::invalid_argument("Workg input file extention. Only mfsys and csv files are supported!"));
     }
 
+    
+    tmp.saveStates = commandLineParameters.saveStates;
+    tmp.saveStateFileBasename = tmp.sysfile.substr(0, tmp.sysfile.find_last_of("."));
+
     for (auto & sect: iniconfig){
         const std::string parameterString = sect.get_name();
 
