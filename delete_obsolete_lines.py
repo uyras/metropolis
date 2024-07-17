@@ -1,14 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[ ]:
-
-
 import sys
-
-
-# In[6]:
-
 
 if len(sys.argv)<3:
     print "format: "+sys.argv[0]+" <input file name> <output file name>"
@@ -38,22 +31,3 @@ else:
                 if i<=startlinenum or i>endlinenum:
                     ofp.write(line)
                 i+=1
-
-
-# In[8]:
-
-
-
-
-
-# In[13]:
-
-
-
-
-
-# In[ ]:
-
-
-
-
