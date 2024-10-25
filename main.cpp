@@ -23,6 +23,10 @@
 #include "CalculationParameter.h"
 #include <inicpp/inicpp.h>
 #include "misc.h"
+#include <gsl/gsl_multifit.h>
+#include <gsl/gsl_cdf.h>
+#include <gsl/gsl_randist.h.>
+#include "interpolation_class.h"
 
 struct monteCarloStatistics {
 	double initEnergy; 
@@ -347,6 +351,16 @@ monteCarloStatistics montecarlo(ConfigManager &config){
 					e2 /= config.getCalculate();
 
 					mpf_class cT = (e2 - (e * e)) / (t * t * N);
+					
+					std::ofstream out;
+	
+					out.open("Capacities.txt")
+					if (out.is_open())
+					{
+						out << cT.get_mpf_t() << " ";
+						out << "\n";
+					}
+					out.close();
 
 					statData.finalStates[tt] = sys.state.toString();
 					statData.finalEnergies[tt] = eOld;
@@ -389,11 +403,46 @@ int main(int argc, char *argv[])
 		return 0;
 	}
 
+	int k = 2;
+	int D = 4;
 	bool programRestarted = false;
 	monteCarloStatistics statData;
 	std::string finalState = config->getSystem().state.toString();
 	do {
-		statData = montecarlo(*config); // запуск самих вычислений
+		//ConfigManager data_temperatures = config; 
+		for (int i = 0; i < k; k++)
+		{
+			statData = montecarlo(*config); // запуск самих вычислений
+			for (int j = 0; j < config->temperatures.size(); j++)
+			{
+				config->temperatures = interpolation_temperatures_(config->temperatures, statData.finalEnergies, config->temperatures.size());
+			}
+		}
+	        std::mt19937 gen((int)time(0));
+        	std::uniform_real_distribution<> urd(0., 1.);
+
+		for (int i = 0; i < D; D++)
+		{
+			statData = montecarlo(*config); // запуск самих вычислений
+			for (int j = config->temperatures.size() - 2; j > -1; j--)
+			{ 
+				double p = std::pow(2.718282, ((statData.finalEnergies[i + 1] - statData.finalEnergies[i + 1]) * (1 / config->temperatures[i + 1] - 1 / config->temperatures[i])));
+
+				if (urd(gen) < p)
+				{
+					std::string tmp__ = statData.finalStates[i+1];
+					statData.finalStates[i + 1] = statData.finalStates[i];
+					statData.finalStates[i] = tmp__;
+				}
+			}
+ 
+			for (int j = 0; j < config->temperatures.size(); j++) 
+			{
+				config->applyState(statData.finalStates[j]);
+			}
+		}
+		statData.foungLowerEnergy = false;
+	/*
 		if (statData.foundLowerEnergy){
 			config->applyState(statData.lowerEnergyState);
 			printf("# -- restart MC: found lower energy %g < %g, at T%d=%g new state: %s\n",
@@ -405,9 +454,8 @@ int main(int argc, char *argv[])
 			programRestarted = true;
 			finalState = xorstr(finalState,statData.lowerEnergyState);
 		}
+	*/
 	} while(statData.foundLowerEnergy);
-
-	
 
 	auto time_end = std::chrono::steady_clock::now();
 
@@ -432,7 +480,7 @@ int main(int argc, char *argv[])
 	int64_t time_total = std::chrono::duration_cast<std::chrono::milliseconds>(time_end - time_start).count();
 	double speedup = double(time_proc_total) / time_total;
 	printf("# total time: %fs, speedup: %f%%, efficiency: %f%%\n", time_total / 1000., speedup * 100, speedup / config->threadCount * 100);
-
+/*
 	if (programRestarted){
 		printf("\n##### Warning! The program was restarted because it found the lower energy.\n");
 		printf("##### But the console output before this moment can not be wiped!\n");
@@ -447,6 +495,18 @@ int main(int argc, char *argv[])
 			printf("# system with found lowest energy is saved to file %s\n",config->getNewGSFilename().c_str());
 		}
 	}
+*/
+	std::ofstream out;
+	
+	out.open("Temperatures.txt")
+	if (out.is_open())
+	{
+		for (double x : config->temperatures) out << x << " ";
+		out << "\n";
+	}
+	out.close();
+	
+	printf("Program executed");	
 
 	return 0;
 }
