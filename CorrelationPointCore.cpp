@@ -54,18 +54,18 @@ void CorrelationPointCore::printHeader(unsigned num) const
     printf("# minimal interaction distance: %.2f\n",this->_minRange);
     printf("# maximal interaction distance: %.2f\n",this->_maxRange);
 
-    printf("# points: %d; (%.2f avg spins per point, %.2f avg. neighbours)\n",
+    printf("# points: %lu; (%.2f avg spins per point, %.2f avg. neighbours)\n",
             this->X.size(),
             this->spinsInPoint,
             this->correlationPairsNum/double(this->prototype->size()));
     printf("#    coordinates: format is <num:(x,y):spins>, <...>, ...\n");
-    printf("# 0:(%f,%f):%d",
+    printf("# 0:(%f,%f):%ld",
         this->X[0],
         this->Y[0],
         std::distance(this->correlationPointSpins[0].begin(),
                         this->correlationPointSpins[0].end()));
     for (int i=1; i<this->X.size(); ++i)
-        printf(", %d:(%f,%f):%d",i,
+        printf(", %d:(%f,%f):%ld",i,
             this->X[i],
             this->Y[i],
             std::distance(this->correlationPointSpins[i].begin(),

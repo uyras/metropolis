@@ -4,7 +4,7 @@
 import sys
 
 if len(sys.argv)<3:
-    print "format: "+sys.argv[0]+" <input file name> <output file name>"
+    print("format: "+sys.argv[0]+" <input file name> <output file name>")
 else:
     ifname = sys.argv[1]
     ofname = sys.argv[2]

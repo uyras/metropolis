@@ -55,9 +55,9 @@ void MagnetisationCore::printHeader(unsigned num) const
     if (this->spins.size()==this->prototype->size()){
         printf("All\n");
     } else {
-        printf("%d",this->spins[0]);
+        printf("%lu",this->spins[0]);
         for (int ss=1; ss<this->spins.size(); ++ss){
-            printf(",%d",this->spins[ss]);
+            printf(",%lu",this->spins[ss]);
         }
         printf("\n");
     }
