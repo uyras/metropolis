@@ -4,18 +4,11 @@ project(metropolis VERSION 0.0.11)
 
 set (CMAKE_CXX_STANDARD 17)
 
-add_subdirectory(partsEngine)
+set( ARGUMENTUM_BUILD_STATIC_LIBS ON INTERNAL )
 add_subdirectory(argumentum-src)
+add_subdirectory(partsEngine)
 add_subdirectory(inicpp)
 
-add_custom_target(fix ALL
-	COMMENT "fixing problem with argparse"
-
-	COMMAND ${CMAKE_COMMAND}
-	   -E copy
-	   "${CMAKE_SOURCE_DIR}/argumentum-src/util/faketarget.cpp"
-	   "${CMAKE_SOURCE_DIR}/util/faketarget.cpp"
-)
 
 find_package(OpenMP REQUIRED)
 
