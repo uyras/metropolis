@@ -25,7 +25,14 @@ inline void trim(std::string &s) {
     ltrim(s);
 }
 
-
+std::string xorstr(std::string s1, std::string s2)
+{
+	std::string s(s1);
+	for (int i=0; i<s1.size(); i++){
+		s[i] = (s1[i]==s2[i])?'0':'1';
+	}
+	return s;
+}
 
 /*================ outer functions ===================*/
 vector < vector < double > > readCSV(string filename){

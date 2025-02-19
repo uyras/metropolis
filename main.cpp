@@ -24,27 +24,6 @@
 #include <inicpp/inicpp.h>
 #include "misc.h"
 
-struct monteCarloStatistics {
-	double initEnergy; 
-	double lowerEnergy;
-	double deltaEnergy;
-	bool foundLowerEnergy;
-	int temperatureOfLowerEnergy;
-	string lowerEnergyState;
-	vector<string> finalStates;
-	vector<double> finalEnergies;
-	vector<std::chrono::time_point<std::chrono::steady_clock>> temperature_times_start;
-	vector<std::chrono::time_point<std::chrono::steady_clock>> temperature_times_end;
-};
-
-std::string xorstr(std::string s1,std::string s2){
-	std::string s(s1);
-	for (int i=0; i<s1.size(); i++){
-		s[i] = (s1[i]==s2[i])?'0':'1';
-	}
-	return s;
-}
-
 std::optional<ConfigManager> readParameters(int argc, char *argv[]){
 
 	// get file name
@@ -94,7 +73,7 @@ std::optional<ConfigManager> readParameters(int argc, char *argv[]){
 }
 
 monteCarloStatistics montecarlo(ConfigManager &config){
-	unsigned temperatureCount = config.temperatures.size();
+	unsigned temperatureCount = config.temperatures->size();
 
 	monteCarloStatistics statData;
 	statData.foundLowerEnergy = false;
@@ -126,7 +105,7 @@ monteCarloStatistics montecarlo(ConfigManager &config){
 #pragma omp parallel
 	{
 #pragma omp for
-		for (int tt = 0; tt < config.temperatures.size(); ++tt)
+		for (int tt = 0; tt < config.temperatures->size(); ++tt)
 		{
 			{
 				statData.temperature_times_start[tt] = std::chrono::steady_clock::now();
@@ -134,7 +113,7 @@ monteCarloStatistics montecarlo(ConfigManager &config){
 				std::vector<std::unique_ptr<CalculationParameter>> calculationParameters;
 				config.getParameters(calculationParameters);
 
-				const double t = config.temperatures[tt];
+				const temp_t t = config.temperatures->at(tt);
 				const unsigned trseed = config.getSeed() + tt;
 				default_random_engine generator;
 				generator.seed(trseed);
@@ -267,13 +246,13 @@ monteCarloStatistics montecarlo(ConfigManager &config){
 							}
 
 							acceptSweep = false;
-							if (dE < 0 || t == 0)
+							if (dE < 0 || t.t == 0)
 							{
 								acceptSweep = true;
 							}
 							else
 							{
-								p = exp(-dE / t);
+								p = exp(-dE / t.t);
 								randNum = doubleDistr(generator);
 								if (randNum <= p)
 								{
@@ -346,7 +325,7 @@ monteCarloStatistics montecarlo(ConfigManager &config){
 					e /= config.getCalculate();
 					e2 /= config.getCalculate();
 
-					mpf_class cT = (e2 - (e * e)) / (t * t * N);
+					mpf_class cT = (e2 - (e * e)) / (t.t * t.t * N);
 
 					statData.finalStates[tt] = sys.state.toString();
 					statData.finalEnergies[tt] = eOld;
@@ -355,7 +334,7 @@ monteCarloStatistics montecarlo(ConfigManager &config){
 	#pragma omp critical
 					{
 						gmp_printf("%e %.30Fe %.30Fe %.30Fe %d %d",
-								t, cT.get_mpf_t(), e.get_mpf_t(), e2.get_mpf_t(),
+								t.t, cT.get_mpf_t(), e.get_mpf_t(), e2.get_mpf_t(),
 								omp_get_thread_num(), trseed);
 						for (auto &cp : calculationParameters)
 						{
@@ -396,11 +375,10 @@ int main(int argc, char *argv[])
 		statData = montecarlo(*config); // запуск самих вычислений
 		if (statData.foundLowerEnergy){
 			config->applyState(statData.lowerEnergyState);
-			printf("# -- restart MC: found lower energy %g < %g, at T%d=%g new state: %s\n",
+			printf("# -- restart MC: found lower energy %g < %g, at %s new state: %s\n",
 			   statData.lowerEnergy,
 			   statData.initEnergy,
-			   statData.temperatureOfLowerEnergy,
-			   config->temperatures[statData.temperatureOfLowerEnergy],
+			   config->temperatures->at(statData.temperatureOfLowerEnergy).to_string().c_str(),
 			   statData.lowerEnergyState.c_str());
 			programRestarted = true;
 			finalState = xorstr(finalState,statData.lowerEnergyState);
@@ -416,13 +394,13 @@ int main(int argc, char *argv[])
 	printf("###########  end of calculations #############\n");
 	printf("#\n");
 	printf("###########     final notes:     #############\n");
-	for (int tt = 0; tt < config->temperatures.size(); ++tt)
+	for (int tt = 0; tt < config->temperatures->size(); ++tt)
 	{
 		auto rtime = std::chrono::duration_cast<std::chrono::milliseconds>(statData.temperature_times_end[tt] - statData.temperature_times_start[tt]).count();
-		printf("#%d, time=%fs, T=%e, E=%e, final state: %s\n",
+		printf("#%d, time=%fs, %s, E=%e, final state: %s\n",
 			   tt,
 			   rtime / 1000.,
-			   config->temperatures[tt],
+			   config->temperatures->at(tt).to_string().c_str(),
 			   statData.finalEnergies[tt],
 			   statData.finalStates[tt].c_str());
 		time_proc_total += rtime;

@@ -22,6 +22,8 @@ set(METROPOLIS_SRC
 	MagnetisationCore.cpp
 	MagnetisationLengthCore.cpp
 	misc.cpp
+	PtBalancerFactory.cpp
+	PtBalancerManual.cpp
 )
 
 file(STRINGS examples/example.ini example_string_a)

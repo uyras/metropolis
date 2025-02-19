@@ -29,6 +29,8 @@ ConfigManager ConfigManager::init(
 {
     ConfigManager tmp;
 
+    vector<double> base_temperatures;
+
     if (iniconfig.contains("main")){
         inicpp::section sect = iniconfig["main"];
         if (sect.contains("file")) tmp.sysfile = sect["file"].get<inicpp::string_ini_t>();
@@ -36,7 +38,7 @@ ConfigManager ConfigManager::init(
         if (sect.contains("calculate")) tmp.calculate = sect["calculate"].get<inicpp::unsigned_ini_t>();
         if (sect.contains("range")) tmp.range = sect["range"].get<inicpp::float_ini_t>();
         if (sect.contains("seed")) tmp.seed = sect["seed"].get<inicpp::unsigned_ini_t>();
-        if (sect.contains("temperature")) tmp.temperatures = sect["temperature"].get_list<inicpp::float_ini_t>();
+        if (sect.contains("temperature")) base_temperatures = sect["temperature"].get_list<inicpp::float_ini_t>();
         if (sect.contains("boundaries") && sect["boundaries"].get<inicpp::string_ini_t>()=="periodic") 
             tmp.pbc = true;
         if (sect.contains("size")) {
@@ -71,7 +73,15 @@ ConfigManager ConfigManager::init(
     if (commandLineParameters.rseed!=-1)
         tmp.seed = commandLineParameters.rseed;
     if (commandLineParameters.temperatures.size()>0)
-        tmp.temperatures = commandLineParameters.temperatures;
+        base_temperatures = commandLineParameters.temperatures;
+
+    if (iniconfig.contains("parallel_tempering")){
+        tmp.temperatures = PtParseConfig(iniconfig);
+        tmp.temperatures->setBaseTemperatures(base_temperatures);
+    } else {
+        tmp.temperatures = new PtBalancerDefault(base_temperatures);
+    }
+    tmp.temperatures->init();
 
     if (tmp.sysfile.compare(tmp.sysfile.length()-4,string::npos,".csv") == 0){ //if filename ends with .csv
         if (tmp.isPBC()) throw(std::invalid_argument("PBC option is not working when you load .csv - files"));
@@ -109,11 +119,9 @@ ConfigManager ConfigManager::init(
     for (auto & sect: iniconfig){
         const std::string parameterString = sect.get_name();
 
-        if (parameterString == "main") continue;
-
+        // все вычисляемые параметры должны иметь в имени секции символ двоеточие
         std::size_t colpos=parameterString.find_first_of(':');
-        if (colpos==std::string::npos)
-            throw(std::invalid_argument("Section name in ini file should contane colon symbol"));
+        if (colpos==std::string::npos) continue;
 
         const std::string parameterName = parameterString.substr(0,colpos);
         const std::string parameterId = parameterString.substr(colpos+1);
@@ -286,13 +294,13 @@ void ConfigManager::printHeader()
         printf("#   restart: disabled\n");
     printf("#   threads: %d\n",threadCount);
     printf("#     rseed: %d+<temperature number>\n",this->seed);
-    printf("#    temps.: %zd pcs. from %e to %e\n",
-        temperatures.size(),
-        std::min_element(temperatures.begin(),temperatures.end()).operator*(),
-        std::max_element(temperatures.begin(),temperatures.end()).operator*());
-    printf("# temp list: %e",temperatures[0]);
-    for (int tt=1; tt<temperatures.size(); ++tt)
-        printf(",%e",temperatures[tt]);
+    printf("#    temps.: %u pcs. from %e to %e\n",
+        temperatures->sizeBase(),
+        std::min_element(temperatures->cbeginBase(),temperatures->cendBase()).operator*(),
+        std::max_element(temperatures->cbeginBase(),temperatures->cendBase()).operator*());
+    printf("# temp list: %e",temperatures->at(0,0));
+    for (int tt=1; tt<temperatures->sizeBase(); ++tt)
+        printf(",%e",temperatures->at(tt,0));
     printf("\n");
     printf("#   params.: %zd\n",this->parameters.size());
     printf("#\n");

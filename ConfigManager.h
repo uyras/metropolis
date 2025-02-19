@@ -17,6 +17,8 @@
 #include "MagnetisationCore.h"
 #include "MagnetisationLengthCore.h"
 #include "misc.h"
+#include "PtBalancerFactory.h"
+#include "PtBalancerDefault.h"
 
 static const std::map<std::string, unsigned> methods = 
     {{"xor",0},{"energy",1},{"scalar",2}};
@@ -38,8 +40,6 @@ public:
     const PartArray & getSystem(){return this->system;}
     void saveSystem(std::string filename){ return this->system.save(filename); }
     void applyState(string s);
-
-    std::vector<double> temperatures;
 
 
     int getSeed() const { return this->seed; }
@@ -63,6 +63,9 @@ public:
 
     static void setPBCEnergies(PartArray & sys);
     static void setCSVEnergies(PartArray & sys);
+
+    bool pt_enabled(){ return this->temperatures->get_each_step(); } // включен ли параллельный отжиг (отключен когда each_step==0)
+    PtBalancerInterface * temperatures = nullptr; // указатель на класс балансира параллельного отжига
 
 private:
     ConfigManager(){};
