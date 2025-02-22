@@ -58,11 +58,7 @@ unsigned PtBalancerManual::size(unsigned baseNum)
 
 double PtBalancerManual::at(unsigned baseNum, unsigned replicaNum)
 {
-    if (replicaNum >= size(baseNum)){
-        throw(std::invalid_argument("There is no replica "+std::to_string(replicaNum)+" for temperature "+std::to_string(baseNum)));
-    } else  {
-        return this->replicaTemperatures.at(replicaTemperaturePositions[baseNum]+replicaNum);
-    }
+    return this->replicaTemperatures.at(this->to(baseNum, replicaNum));
 }
 
 temp_t PtBalancerManual::at(unsigned temperatureNum)
@@ -72,4 +68,13 @@ temp_t PtBalancerManual::at(unsigned temperatureNum)
         if (temperatureNum<replicaTemperaturePositions[i]) break;
     }
     return {i-1,temperatureNum-replicaTemperaturePositions[i-1],this->replicaTemperatures.at(temperatureNum)};
+}
+
+unsigned PtBalancerManual::to(unsigned baseNum, unsigned replicaNum)
+{
+    if (replicaNum >= size(baseNum)){
+        throw(std::invalid_argument("There is no replica "+std::to_string(replicaNum)+" for temperature "+std::to_string(baseNum)));
+    } else  {
+        return replicaTemperaturePositions[baseNum]+replicaNum;
+    }
 }

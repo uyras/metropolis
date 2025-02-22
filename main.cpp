@@ -11,6 +11,7 @@
 #include <gmpxx.h>
 #include <chrono>
 #include <omp.h>
+#include <memory>
 #include <argumentum/argparse.h>
 #include "PartArray.h"
 #include "Part.h"
@@ -102,21 +103,24 @@ monteCarloStatistics montecarlo(ConfigManager *config){
 
 
 	vector< optional< pair<double,string> > > workerResults(config->temperatures->size());
-	vector <Worker> workers;
+	vector <shared_ptr<Worker>> workers(config->temperatures->size());
 	for (int tt = 0; tt < config->temperatures->size(); ++tt){
-		workers.emplace_back(tt,config->getSeed() + tt, config);
-		config->getParameters(workers[tt].calculationParameters);
+		workers[tt] = make_shared<Worker>(tt,config->getSeed() + tt, config);
+		//workers.push_back(Worker());
+		config->getParameters(workers[tt]->calculationParameters);
 	}
 
 	//новый кусок кода
 	for (unsigned phase = 0; phase <= 1; ++phase)
 	{
-		unsigned eachsteps = config->temperatures->get_each_step();
 		unsigned calculateSteps;
 		if (phase == 0)
 			calculateSteps = config->getHeatup();
 		else
 			calculateSteps = config->getCalculate();
+
+		unsigned eachsteps = config->temperatures->get_each_step();
+		if (eachsteps==0) eachsteps = calculateSteps; //случай когда параллельный отжиг отключен
 		
 		unsigned stepResidual = calculateSteps % eachsteps;
 		
@@ -124,7 +128,7 @@ monteCarloStatistics montecarlo(ConfigManager *config){
 			#pragma omp parallel for
 			for (int tt = 0; tt < config->temperatures->size(); ++tt)
 			{
-				workerResults[tt] = workers[tt].work((step<calculateSteps)?eachsteps:stepResidual, (bool)phase, statData.lowerEnergy);
+				workerResults[tt] = workers[tt]->work((step<calculateSteps)?eachsteps:stepResidual, (bool)phase, statData.lowerEnergy);
 			}
 
 			// тут проверить нашлась ли во всех потоках энергия ниже начальной или нет
@@ -143,9 +147,13 @@ monteCarloStatistics montecarlo(ConfigManager *config){
                 break; //break up 
             }
 
-			for (int tt = 0; tt < config->temperatures->size()-1; ++tt)
+			for (int tt = 0; tt < config->temperatures->sizeBase(); ++tt)
 			{
-				Worker::exchange(workers[tt],workers[tt+1]);
+				if (config->temperatures->size(tt)>1){
+					for (int r=0; r<config->temperatures->size(tt)-1;++r){
+						Worker::exchange(workers[config->temperatures->to(tt,r)],workers[config->temperatures->to(tt,r+1)]);
+					}
+				}
 			}
 		}
 
@@ -158,9 +166,19 @@ monteCarloStatistics montecarlo(ConfigManager *config){
 	if (!statData.foundLowerEnergy) {
 		for (int tt = 0; tt < config->temperatures->size(); ++tt)
 		{
-			workers[tt].printout(config->temperatures->at(tt));
-			statData.time_proc_total += workers[tt].duration.count();
+			workers[tt]->printout(config->temperatures->at(tt));
+			statData.time_proc_total += workers[tt]->duration.count();
 		}
+
+		// print out the states and times of running
+		printf("###########  end of calculations #############\n");
+		printf("#\n");
+		printf("###########     final notes:     #############\n");
+		for (int tt = 0; tt < config->temperatures->size(); ++tt)
+		{
+			workers[tt]->printout_service();
+		}
+		printf("#\n");
 	}
 	
 
@@ -197,12 +215,7 @@ int main(int argc, char *argv[])
 
 	auto time_end = std::chrono::steady_clock::now();
 
-	// print out the states and times of running
-	printf("###########  end of calculations #############\n");
-	printf("#\n");
-	printf("###########     final notes:     #############\n");
-
-	printf("#\n");
+	
 	int64_t time_total = std::chrono::duration_cast<std::chrono::milliseconds>(time_end - time_start).count();
 	double speedup = double(statData.time_proc_total) / time_total;
 	printf("# total time: %fs, speedup: %f%%, efficiency: %f%%\n", time_total / 1000., speedup * 100, speedup / config->threadCount * 100);

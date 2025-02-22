@@ -32,7 +32,7 @@ private:
 public:
     Worker(unsigned num, int seed, const ConfigManager* _config);
     Worker(const Worker&) = delete; //явно отключаем конструктор копирования, чтобы добавление этого класса в вектор работало корректно
-    Worker(Worker&&) = default;
+    Worker(Worker&&) = delete;
 
     /**
      * @brief Основной процесс который выполняет вычисления. 
@@ -59,7 +59,7 @@ public:
     vector<std::unique_ptr<CalculationParameter>> calculationParameters;
 
 
-    static bool exchange(const Worker &w1, const Worker &w2);
+    static bool exchange(const shared_ptr<Worker> w1, const shared_ptr<Worker> w2);
 };
 
 #endif //WORKER_H

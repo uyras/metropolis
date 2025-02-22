@@ -33,6 +33,8 @@ public:
     temp_t at(unsigned temperatureNum) {
         return {temperatureNum,0,this->base_temperatures.at(temperatureNum)};
     };
+
+    unsigned to(unsigned baseNum, unsigned replicaNum){ return baseNum; }
 };
 
 

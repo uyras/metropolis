@@ -47,12 +47,12 @@ Worker::Worker(unsigned num, int seed, const ConfigManager* _config) :
     }
 
     // print neighbours and energies
-	/*sys[0].E();
-	for (unsigned i=0; i<sys[0].size(); i++){
+	/*cout<<sys.E()<<endl;
+	for (unsigned i=0; i<sys.size(); i++){
 		cout<<i<<": ";
 		unsigned j=0;
-		for (auto p: sys[0].neighbours[i]){
-			cout<<p->Id()<<"("<<sys[0].eAt(i,j)<<"), ";
+		for (auto p: sys.neighbours[i]){
+			cout<<p->Id()<<"("<<sys.eAt(i,j)<<"), ";
 			++j;
 		}
 		cout<<endl;
@@ -84,7 +84,7 @@ optional< pair<double,string> > Worker::work(unsigned steps, bool calculateStati
     {
         if ((this->stepsMade + step) == 0 || (this->stepsMade + step) % FULL_REFRESH_EVERY == 0)
         {
-            this->fullRefreshEnergy();
+            eOld = this->fullRefreshEnergy();
             if (config->isRestart() && isFoundLowest){
                 break;
             }
@@ -241,7 +241,7 @@ void Worker::printout_service()
         sys.state.toString().c_str());
 }
 
-bool Worker::exchange(const Worker &w1, const Worker &w2)
+bool Worker::exchange(const shared_ptr<Worker> w1, const shared_ptr<Worker> w2)
 {
     return false;
 }

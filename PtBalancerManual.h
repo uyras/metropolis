@@ -39,6 +39,8 @@ public:
     */
     double at(unsigned baseNum, unsigned replicaNum);
     temp_t at(unsigned temperatureNum);
+
+    unsigned to(unsigned baseNum, unsigned replicaNum);
 };
 
 
