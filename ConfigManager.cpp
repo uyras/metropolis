@@ -3,118 +3,97 @@
 Vect ConfigManager::size;
 vector < vector < double > > ConfigManager::energyTable;
 
-bool ConfigManager::check_config()
-{
-
-    //check main parameters
-    {
-        if (this->calculate<1){
-            cerr<<"error! --calculate should be greather than 0!"<<endl;
-            return false;
-        }
-
-    }
-
-    //check parameters of the core
-    for (auto & co : parameters){
-        if (!co->check(this->system.size())) return false;
-    }
-
-    return true;
-}
-
-ConfigManager ConfigManager::init(
+ConfigManager::ConfigManager(
     const CommandLineParameters & commandLineParameters, 
     const inicpp::config & iniconfig)
 {
-    ConfigManager tmp;
 
     vector<double> base_temperatures;
 
     if (iniconfig.contains("main")){
         inicpp::section sect = iniconfig["main"];
-        if (sect.contains("file")) tmp.sysfile = sect["file"].get<inicpp::string_ini_t>();
-        if (sect.contains("heatup")) tmp.heatup = sect["heatup"].get<inicpp::unsigned_ini_t>();
-        if (sect.contains("calculate")) tmp.calculate = sect["calculate"].get<inicpp::unsigned_ini_t>();
-        if (sect.contains("range")) tmp.range = sect["range"].get<inicpp::float_ini_t>();
-        if (sect.contains("seed")) tmp.seed = sect["seed"].get<inicpp::unsigned_ini_t>();
+        if (sect.contains("file")) this->sysfile = sect["file"].get<inicpp::string_ini_t>();
+        if (sect.contains("heatup")) this->heatup = sect["heatup"].get<inicpp::unsigned_ini_t>();
+        if (sect.contains("calculate")) this->calculate = sect["calculate"].get<inicpp::unsigned_ini_t>();
+        if (sect.contains("range")) this->range = sect["range"].get<inicpp::float_ini_t>();
+        if (sect.contains("seed")) this->seed = sect["seed"].get<inicpp::unsigned_ini_t>();
         if (sect.contains("temperature")) base_temperatures = sect["temperature"].get_list<inicpp::float_ini_t>();
         if (sect.contains("boundaries") && sect["boundaries"].get<inicpp::string_ini_t>()=="periodic") 
-            tmp.pbc = true;
+        this->pbc = true;
         if (sect.contains("size")) {
             ConfigManager::size =
              ConfigManager::strToVect(sect["size"].get<inicpp::string_ini_t>());
-        } else if (tmp.pbc) {
+        } else if (this->pbc) {
             throw std::invalid_argument("You have to set the \"size\" parameter when using boundaries=periodic");
         }
         
         if (sect.contains("field")) 
-            tmp.field = ConfigManager::strToVect(sect["field"].get<inicpp::string_ini_t>());
+            this->field = ConfigManager::strToVect(sect["field"].get<inicpp::string_ini_t>());
         else
-            tmp.field.setXYZ(0,0,0);
+            this->field.setXYZ(0,0,0);
 
-        if (sect.contains("debug")) tmp.debug = sect["debug"].get<inicpp::boolean_ini_t>();
+        if (sect.contains("debug")) this->debug = sect["debug"].get<inicpp::boolean_ini_t>();
 
-        if (sect.contains("restart")) tmp.restart = sect["restart"].get<inicpp::boolean_ini_t>();
-        if (sect.contains("restartThreshold")) tmp.restartThreshold = sect["restartThreshold"].get<inicpp::float_ini_t>();
-        if (sect.contains("restartthreshold")) tmp.restartThreshold = sect["restartthreshold"].get<inicpp::float_ini_t>();
-        if (sect.contains("saveGS")) tmp.newGSFilename = sect["saveGS"].get<inicpp::string_ini_t>();
-        if (sect.contains("savegs")) tmp.newGSFilename = sect["savegs"].get<inicpp::string_ini_t>();
+        if (sect.contains("restart")) this->restart = sect["restart"].get<inicpp::boolean_ini_t>();
+        if (sect.contains("restartThreshold")) this->restartThreshold = sect["restartThreshold"].get<inicpp::float_ini_t>();
+        if (sect.contains("restartthreshold")) this->restartThreshold = sect["restartthreshold"].get<inicpp::float_ini_t>();
+        if (sect.contains("saveGS")) this->newGSFilename = sect["saveGS"].get<inicpp::string_ini_t>();
+        if (sect.contains("savegs")) this->newGSFilename = sect["savegs"].get<inicpp::string_ini_t>();
     }
     
     if (!commandLineParameters.sysfilename.empty())
-        tmp.sysfile = commandLineParameters.sysfilename;
+        this->sysfile = commandLineParameters.sysfilename;
     if (commandLineParameters.hSteps != -1)
-        tmp.heatup = commandLineParameters.hSteps;
+        this->heatup = commandLineParameters.hSteps;
     if (commandLineParameters.cSteps != -1)
-        tmp.calculate = commandLineParameters.cSteps;
+        this->calculate = commandLineParameters.cSteps;
     if (!isnan(commandLineParameters.iRange))
-        tmp.range = commandLineParameters.iRange;
+        this->range = commandLineParameters.iRange;
     if (commandLineParameters.rseed!=-1)
-        tmp.seed = commandLineParameters.rseed;
+        this->seed = commandLineParameters.rseed;
     if (commandLineParameters.temperatures.size()>0)
         base_temperatures = commandLineParameters.temperatures;
 
     if (iniconfig.contains("parallel_tempering")){
-        tmp.temperatures = PtParseConfig(iniconfig);
-        tmp.temperatures->setBaseTemperatures(base_temperatures);
+        this->temperatures = PtParseConfig(iniconfig);
+        this->temperatures->setBaseTemperatures(base_temperatures);
     } else {
-        tmp.temperatures = new PtBalancerDefault(base_temperatures);
+        this->temperatures = new PtBalancerDefault(base_temperatures);
     }
-    tmp.temperatures->init();
+    this->temperatures->init();
 
-    if (tmp.sysfile.compare(tmp.sysfile.length()-4,string::npos,".csv") == 0){ //if filename ends with .csv
-        if (tmp.isPBC()) throw(std::invalid_argument("PBC option is not working when you load .csv - files"));
+    if (this->sysfile.compare(this->sysfile.length()-4,string::npos,".csv") == 0){ //if filename ends with .csv
+        if (this->isPBC()) throw(std::invalid_argument("PBC option is not working when you load .csv - files"));
 
-        tmp._csv = true;
+        this->_csv = true;
 
-        ConfigManager::energyTable = readCSV(tmp.sysfile);
-        tmp.range = 1;
-        tmp.system.setInteractionRange(tmp.range); //non-zero to avoid problems
-        tmp.system.parts.reserve(ConfigManager::energyTable.size());
+        ConfigManager::energyTable = readCSV(this->sysfile);
+        this->range = 1;
+        this->system.setInteractionRange(this->range); //non-zero to avoid problems
+        this->system.parts.reserve(ConfigManager::energyTable.size());
         Part* temp;
         for (int i=0; i<ConfigManager::energyTable.size(); i++){
             temp = new Part();
             temp->pos.setXYZ(0,0,0);
             temp->m.setXYZ(1,0,0);
-            tmp.system.add(temp);
+            this->system.add(temp);
         }
-        ConfigManager::setCSVEnergies(tmp.system);
-    } else if (tmp.sysfile.compare(tmp.sysfile.length()-6,string::npos,".mfsys") == 0) { //if filename ends with .mfsys
-        tmp._csv = false;
-        tmp.system.load(tmp.sysfile);
-        tmp.system.state.hardReset();
-        tmp.system.setInteractionRange(tmp.range);
-        if (tmp.isPBC()){
-            ConfigManager::setPBCEnergies(tmp.system);
+        ConfigManager::setCSVEnergies(this->system);
+    } else if (this->sysfile.compare(this->sysfile.length()-6,string::npos,".mfsys") == 0) { //if filename ends with .mfsys
+        this->_csv = false;
+        this->system.load(this->sysfile);
+        this->system.state.hardReset();
+        this->system.setInteractionRange(this->range);
+        if (this->isPBC()){
+            ConfigManager::setPBCEnergies(this->system);
         }
     } else {
         throw(std::invalid_argument("Workg input file extention. Only mfsys and csv files are supported!"));
     }
 
     
-    tmp.saveStates = commandLineParameters.saveStates;
-    tmp.saveStateFileBasename = tmp.sysfile.substr(0, tmp.sysfile.find_last_of("."));
+    this->saveStates = commandLineParameters.saveStates;
+    this->saveStateFileBasename = this->sysfile.substr(0, this->sysfile.find_last_of("."));
 
     for (auto & sect: iniconfig){
         const std::string parameterString = sect.get_name();
@@ -148,7 +127,7 @@ ConfigManager ConfigManager::init(
                 if (is_list) t_parameterId = parameterId+"_"+to_string(i);
                 std::unique_ptr<CorrelationCore> core = 
                     make_unique<CorrelationCore>(t_parameterId,
-                        &tmp.system,
+                        &this->system,
                         sect["minrange"].get<inicpp::float_ini_t>(),
                         sect["maxrange"].get<inicpp::float_ini_t>(),
                         methods.at(a),
@@ -156,7 +135,7 @@ ConfigManager ConfigManager::init(
                 
                 if (setDebug) core->setDebug();
 
-                tmp.parameters.push_back(std::move(core));
+                this->parameters.push_back(std::move(core));
                 ++i;
             }
 
@@ -176,7 +155,7 @@ ConfigManager ConfigManager::init(
 
                 std::unique_ptr<CorrelationPointCore> core = 
                     make_unique<CorrelationPointCore>(parameterId,
-                        &tmp.system, X, Y,
+                        &this->system, X, Y,
                         sect["distance"].get<inicpp::float_ini_t>(),
                         minRange,
                         sect["maxrange"].get<inicpp::float_ini_t>());
@@ -188,7 +167,7 @@ ConfigManager ConfigManager::init(
                     core->enableHistogram("histogram_"+parameterId+"_$.txt"); //replace dollar by number in time of saving
                 }
 
-                tmp.parameters.push_back(std::move(core));
+                this->parameters.push_back(std::move(core));
 
         } else if (parameterName == "magnetisation") {
             int i=0;
@@ -210,14 +189,14 @@ ConfigManager ConfigManager::init(
 
                 std::unique_ptr<MagnetisationCore> core = 
                     make_unique<MagnetisationCore>(t_parameterId,
-                        &tmp.system,
+                        &this->system,
                         ConfigManager::strToVect(a),
                         spins);
 
                 if (setDebug) core->setDebug();
                 if (setModule) core->setModule(true);
 
-                tmp.parameters.push_back(std::move(core));
+                this->parameters.push_back(std::move(core));
                 ++i;
             }
         } else if (parameterName == "magnetisationlength") {
@@ -228,19 +207,39 @@ ConfigManager ConfigManager::init(
 
             std::unique_ptr<MagnetisationLengthCore> core = 
                 make_unique<MagnetisationLengthCore>(parameterId,
-                    &tmp.system,
+                    &this->system,
                     spins);
 
             if (setDebug) core->setDebug();
 
-            tmp.parameters.push_back(std::move(core));
+            this->parameters.push_back(std::move(core));
 
         } else {
             throw(std::invalid_argument("Parameter " + parameterName + " is unknown"));
         }
     }
 
-    return tmp;
+    return;
+}
+
+bool ConfigManager::check_config()
+{
+
+    //check main parameters
+    {
+        if (this->calculate<1){
+            cerr<<"error! --calculate should be greather than 0!"<<endl;
+            return false;
+        }
+
+    }
+
+    //check parameters of the core
+    for (auto & co : parameters){
+        if (!co->check(this->system.size())) return false;
+    }
+
+    return true;
 }
 
 void ConfigManager::printHeader()

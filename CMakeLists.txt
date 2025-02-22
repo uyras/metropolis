@@ -24,6 +24,7 @@ set(METROPOLIS_SRC
 	misc.cpp
 	PtBalancerFactory.cpp
 	PtBalancerManual.cpp
+	Worker.cpp
 )
 
 file(STRINGS examples/example.ini example_string_a)

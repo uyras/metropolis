@@ -23,8 +23,9 @@
 #include "CalculationParameter.h"
 #include <inicpp/inicpp.h>
 #include "misc.h"
+#include "Worker.h"
 
-std::optional<ConfigManager> readParameters(int argc, char *argv[]){
+ConfigManager* readParameters(int argc, char *argv[]){
 
 	// get file name
 	bool parse_failed = false;
@@ -49,7 +50,7 @@ std::optional<ConfigManager> readParameters(int argc, char *argv[]){
 			std::cout << endl;
 			std::cout << example_string << endl;
 		}
-		return {};
+		return nullptr;
 	}
 
 	inicpp::config iniconfig;
@@ -58,37 +59,33 @@ std::optional<ConfigManager> readParameters(int argc, char *argv[]){
 		iniconfig = inicpp::parser::load_file(commandLineParameters->inifilename);
 	}
 
-	ConfigManager config = ConfigManager::init(*(commandLineParameters.get()), iniconfig);
+	ConfigManager *config = new ConfigManager(*(commandLineParameters.get()), iniconfig);
 
-	bool configError = config.check_config();
+	bool configError = config->check_config();
 	if (!configError)
 	{
 		cerr << "Program stopped with error" << endl;
-		return {};
+		return nullptr;
 	} else {
-		config.printHeader();
+		config->printHeader();
 	}
 
 	return config;
 }
 
-monteCarloStatistics montecarlo(ConfigManager &config){
-	unsigned temperatureCount = config.temperatures->size();
+monteCarloStatistics montecarlo(ConfigManager *config){
+	unsigned temperatureCount = config->temperatures->size();
 
 	monteCarloStatistics statData;
 	statData.foundLowerEnergy = false;
-	statData.finalStates.resize(temperatureCount);
-	statData.finalEnergies.resize(temperatureCount);
-	statData.temperature_times_start.resize(temperatureCount);
-	statData.temperature_times_end.resize(temperatureCount);
 
 	{ // block to get initial energy
-		const Vect field = config.getField();
-		PartArray sys(config.getSystem());
-		if (config.isCSV()){
+		const Vect field = config->getField();
+		PartArray sys(config->getSystem());
+		if (config->isCSV()){
 			ConfigManager::setCSVEnergies(sys);
 		} else {
-			if (config.isPBC())
+			if (config->isPBC())
 			{
 				ConfigManager::setPBCEnergies(sys);
 			}
@@ -99,262 +96,73 @@ monteCarloStatistics montecarlo(ConfigManager &config){
 			statData.initEnergy -= p->m.scalar(field);
 		}
 		statData.lowerEnergy = statData.initEnergy;
-		statData.deltaEnergy = fabs(statData.initEnergy * config.getRestartThreshold());
+		config->deltaEnergy = fabs(statData.initEnergy * config->getRestartThreshold()); //todo переделать так чтобы эта дельта расчитывалась всего один раз
 	}
 
-#pragma omp parallel
+
+
+	vector< optional< pair<double,string> > > workerResults(config->temperatures->size());
+	vector <Worker> workers;
+	for (int tt = 0; tt < config->temperatures->size(); ++tt){
+		workers.emplace_back(tt,config->getSeed() + tt, config);
+		config->getParameters(workers[tt].calculationParameters);
+	}
+
+	//новый кусок кода
+	for (unsigned phase = 0; phase <= 1; ++phase)
 	{
-#pragma omp for
-		for (int tt = 0; tt < config.temperatures->size(); ++tt)
-		{
+		unsigned eachsteps = config->temperatures->get_each_step();
+		unsigned calculateSteps;
+		if (phase == 0)
+			calculateSteps = config->getHeatup();
+		else
+			calculateSteps = config->getCalculate();
+		
+		unsigned stepResidual = calculateSteps % eachsteps;
+		
+		for (unsigned step = 0; step < calculateSteps + stepResidual; step += eachsteps){
+			#pragma omp parallel for
+			for (int tt = 0; tt < config->temperatures->size(); ++tt)
 			{
-				statData.temperature_times_start[tt] = std::chrono::steady_clock::now();
+				workerResults[tt] = workers[tt].work((step<calculateSteps)?eachsteps:stepResidual, (bool)phase, statData.lowerEnergy);
+			}
 
-				std::vector<std::unique_ptr<CalculationParameter>> calculationParameters;
-				config.getParameters(calculationParameters);
-
-				const temp_t t = config.temperatures->at(tt);
-				const unsigned trseed = config.getSeed() + tt;
-				default_random_engine generator;
-				generator.seed(trseed);
-				uniform_int_distribution<int> intDistr(0, config.N() - 1); // including right edge
-				uniform_real_distribution<double> doubleDistr(0, 1);	   // right edge is not included
-
-				
-				mpf_class e(0, 1024 * 8);
-				mpf_class e2(0, 2048 * 8);
-
-				/////////// duplicate the system
-				PartArray sys(config.getSystem());
-				if (config.isCSV()){
-					ConfigManager::setCSVEnergies(sys);
-				} else {
-					if (config.isPBC())
-					{
-						ConfigManager::setPBCEnergies(sys);
-					}
-				}
-
-				// print neighbours and energies
-				/*sys.E();
-				for (unsigned i=0; i<sys.size(); i++){
-					cout<<i<<": ";
-					unsigned j=0;
-					for (auto p: sys.neighbours[i]){
-						cout<<p->Id()<<"("<<sys.eAt(i,j)<<"), ";
-						++j;
-					}
-					cout<<endl;
-				}*/
-
-				const unsigned N = sys.size();
-
-				bool swapRes;
-				unsigned swapNum;
-				const Vect field = config.getField();
-				double eOld;
-
-				double dE, p, randNum;
-
-				double mxOld;
-				double myOld;
-
-				bool acceptSweep;
-
-				// phase=0 is the heatup, phase=1 is calculate
-				for (unsigned phase = 0; phase <= 1; ++phase)
-				{
-
-					// full recalculte energy
-					eOld = sys.E();
-					// add external field
-					for (auto p : sys.parts)
-					{
-						eOld -= p->m.scalar(field);
-					}
-
-					if (phase == 1)
-					{
-						for (auto &cp : calculationParameters)
-						{
-							cp->init(&sys); // attach the system and calculate the init value
-						}
-					}
-
-					unsigned calculateSteps;
-					if (phase == 0)
-						calculateSteps = config.getHeatup();
-					else
-						calculateSteps = config.getCalculate();
-
-					for (unsigned step = 0; step < calculateSteps; ++step)
-					{
-						// full recalculte energy every to avoid FP error collection
-						if (step != 0 && step % FULL_REFRESH_EVERY == 0)
-						{
-							eOld = sys.E();
-							// add external field
-							for (auto p : sys.parts)
-							{
-								eOld -= p->m.scalar(field);
-							}
-
-							if (statData.foundLowerEnergy){
-								//cancel the calculations
-								phase = 1; //force go to the phase
-								break; //break up the main for loop
-							}
-						}
-
-						for (unsigned sstep = 0; sstep < N; ++sstep)
-						{
-
-							dE = 0;
-							swapNum = intDistr(generator);
-							Part *partA = sys.getById(swapNum);
-
-							{ // get dE
-								unsigned j = 0;
-
-								if (sys.interactionRange() != 0.0)
-								{
-									for (Part *neigh : sys.neighbours[swapNum])
-									{
-										if (neigh->state == partA->state) // assume it is rotated, inverse state in mind
-											dE -= 2. * sys.eAt(swapNum, j);
-										else
-											dE += 2. * sys.eAt(swapNum, j);
-										++j;
-									}
-								}
-								else
-								{
-									for (Part *neigh : sys.parts)
-									{
-										if (partA != neigh)
-										{
-											if (neigh->state == partA->state)
-												dE -= 2. * sys.eAt(swapNum, j);
-											else
-												dE += 2. * sys.eAt(swapNum, j);
-											++j;
-										}
-									}
-								}
-
-								dE += 2 * partA->m.scalar(field);
-							}
-
-							acceptSweep = false;
-							if (dE < 0 || t.t == 0)
-							{
-								acceptSweep = true;
-							}
-							else
-							{
-								p = exp(-dE / t.t);
-								randNum = doubleDistr(generator);
-								if (randNum <= p)
-								{
-									acceptSweep = true;
-								}
-							}
-
-							if (acceptSweep)
-							{
-								sys.parts[swapNum]->rotate(false);
-								eOld += dE;
-
-								if (phase == 1)
-								{
-									for (auto &cp : calculationParameters)
-									{
-										cp->iterate(partA->Id());
-									}
-								}
-
-								if (config.debug)
-								{
-									// recalc energy
-									double eTmp = sys.E();
-
-									// add external field
-									for (auto pt : sys.parts)
-									{
-										eTmp -= pt->m.scalar(field);
-									}
-
-									if (fabs(eTmp - eOld) > 0.00001)
-									{
-										cerr << "# (dbg main#" << phase << ") energy is different. iterative: " << eOld << "; actual: " << eTmp << endl;
-									}
-								}
-
-								
-								if (config.isRestart() && (eOld - statData.lowerEnergy) < -statData.deltaEnergy) // if found lower energy
-								{
-#pragma omp critical
-									{
-										statData.foundLowerEnergy = 1;
-										statData.lowerEnergy = eOld;
-										statData.lowerEnergyState = sys.state.toString();
-										statData.temperatureOfLowerEnergy = tt;
-									}
-								}
-							}
-						}
-
-						// update thermodynamic averages (porosyenok ;)
-						if (phase == 1)
-						{
-							e += eOld;
-							e2 += eOld * eOld;
-							for (auto &cp : calculationParameters)
-							{
-								cp->incrementTotal();
-							}
-
-							if (config.getSaveStates()>0 && step % config.getSaveStates() == 0){
-								sys.save( config.getSaveStateFileName(tt,step) );
-							}
-						}
-					}
-				}
-
-				if (!statData.foundLowerEnergy) {
-					e /= config.getCalculate();
-					e2 /= config.getCalculate();
-
-					mpf_class cT = (e2 - (e * e)) / (t.t * t.t * N);
-
-					statData.finalStates[tt] = sys.state.toString();
-					statData.finalEnergies[tt] = eOld;
-					statData.temperature_times_end[tt] = std::chrono::steady_clock::now();
-
-	#pragma omp critical
-					{
-						gmp_printf("%e %.30Fe %.30Fe %.30Fe %d %d",
-								t.t, cT.get_mpf_t(), e.get_mpf_t(), e2.get_mpf_t(),
-								omp_get_thread_num(), trseed);
-						for (auto &cp : calculationParameters)
-						{
-							gmp_printf(" %.30Fe %.30Fe",
-									cp->getTotal(config.getCalculate()).get_mpf_t(),
-									cp->getTotal2(config.getCalculate()).get_mpf_t());
-						}
-						auto rtime = std::chrono::duration_cast<std::chrono::milliseconds>(statData.temperature_times_end[tt] - statData.temperature_times_start[tt]).count();
-						printf(" %f", rtime / 1000.);
-						printf("\n");
-						fflush(stdout);
-						for (auto &cp : calculationParameters)
-						{
-							cp->save(tt);
-						}
+			// тут проверить нашлась ли во всех потоках энергия ниже начальной или нет
+			for (int tt = 0; tt < config->temperatures->size(); ++tt)
+			{
+				if (workerResults[tt]){
+					statData.foundLowerEnergy = true;
+					if (workerResults[tt]->first < statData.lowerEnergy){
+						statData.lowerEnergy = workerResults[tt]->first;
+						statData.lowerEnergyState = workerResults[tt]->second;
+						statData.temperatureOfLowerEnergy = tt;
 					}
 				}
 			}
+			if (statData.foundLowerEnergy){
+                break; //break up 
+            }
+
+			for (int tt = 0; tt < config->temperatures->size()-1; ++tt)
+			{
+				Worker::exchange(workers[tt],workers[tt+1]);
+			}
+		}
+
+		
+		if (statData.foundLowerEnergy){
+			break; //break up 
 		}
 	}
+
+	if (!statData.foundLowerEnergy) {
+		for (int tt = 0; tt < config->temperatures->size(); ++tt)
+		{
+			workers[tt].printout(config->temperatures->at(tt));
+			statData.time_proc_total += workers[tt].duration.count();
+		}
+	}
+	
 
 	return statData;
 } 
@@ -363,7 +171,7 @@ int main(int argc, char *argv[])
 {
 	auto time_start = std::chrono::steady_clock::now();
 
-	auto config = readParameters(argc,argv);
+	ConfigManager *config = readParameters(argc,argv);
 	if (!config){
 		return 0;
 	}
@@ -372,7 +180,7 @@ int main(int argc, char *argv[])
 	monteCarloStatistics statData;
 	std::string finalState = config->getSystem().state.toString();
 	do {
-		statData = montecarlo(*config); // запуск самих вычислений
+		statData = montecarlo(config); // запуск самих вычислений
 		if (statData.foundLowerEnergy){
 			config->applyState(statData.lowerEnergyState);
 			printf("# -- restart MC: found lower energy %g < %g, at %s new state: %s\n",
@@ -390,25 +198,13 @@ int main(int argc, char *argv[])
 	auto time_end = std::chrono::steady_clock::now();
 
 	// print out the states and times of running
-	int64_t time_proc_total = 0;
 	printf("###########  end of calculations #############\n");
 	printf("#\n");
 	printf("###########     final notes:     #############\n");
-	for (int tt = 0; tt < config->temperatures->size(); ++tt)
-	{
-		auto rtime = std::chrono::duration_cast<std::chrono::milliseconds>(statData.temperature_times_end[tt] - statData.temperature_times_start[tt]).count();
-		printf("#%d, time=%fs, %s, E=%e, final state: %s\n",
-			   tt,
-			   rtime / 1000.,
-			   config->temperatures->at(tt).to_string().c_str(),
-			   statData.finalEnergies[tt],
-			   statData.finalStates[tt].c_str());
-		time_proc_total += rtime;
-	}
 
 	printf("#\n");
 	int64_t time_total = std::chrono::duration_cast<std::chrono::milliseconds>(time_end - time_start).count();
-	double speedup = double(time_proc_total) / time_total;
+	double speedup = double(statData.time_proc_total) / time_total;
 	printf("# total time: %fs, speedup: %f%%, efficiency: %f%%\n", time_total / 1000., speedup * 100, speedup / config->threadCount * 100);
 
 	if (programRestarted){

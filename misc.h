@@ -24,14 +24,10 @@ using namespace std;
 struct monteCarloStatistics {
 	double initEnergy; 
 	double lowerEnergy;
-	double deltaEnergy;
 	bool foundLowerEnergy;
 	int temperatureOfLowerEnergy;
 	string lowerEnergyState;
-	vector<string> finalStates;
-	vector<double> finalEnergies;
-	vector<std::chrono::time_point<std::chrono::steady_clock>> temperature_times_start;
-	vector<std::chrono::time_point<std::chrono::steady_clock>> temperature_times_end;
+	int64_t time_proc_total;
 };
 
 /**

@@ -31,35 +31,36 @@ Vect radiusPBC(const Vect& a, const Vect& b);
 class ConfigManager
 {
 public:
+    ConfigManager(const CommandLineParameters & commandLineParameters, const inicpp::config & iniconfig);
     bool check_config();
-    static ConfigManager init(const CommandLineParameters & commandLineParameters, const inicpp::config & iniconfig);
 
     void printHeader();
     void getParameters(std::vector< std::unique_ptr< CalculationParameter > > &);
 
-    const PartArray & getSystem(){return this->system;}
+    const PartArray & getSystem() const {return this->system;}
     void saveSystem(std::string filename){ return this->system.save(filename); }
     void applyState(string s);
 
 
     int getSeed() const { return this->seed; }
     unsigned N() const { return this->system.size(); }
-    unsigned getHeatup() { return this->heatup; }
-    unsigned getCalculate() { return this->calculate; }
-    std::string getSysfile() { return this->sysfile; }
+    unsigned getHeatup() const { return this->heatup; }
+    unsigned getCalculate() const { return this->calculate; }
+    std::string getSysfile() const { return this->sysfile; }
     const Vect & getField() const { return this->field; }
     bool isPBC() const { return this->pbc; }
     bool isCSV() const { return this->_csv;}
     bool isRestart() const {return this->restart; }
     double getRestartThreshold() const {return this->restartThreshold; }
-    std::string getNewGSFilename() {return this->newGSFilename; }
-    inline unsigned getSaveStates() { return this->saveStates; }
-    std::string getSaveStateFileName(int temperature, int step){ return this->saveStateFileBasename+"_"+std::to_string(temperature)+"_"+std::to_string(step)+".mfsys"; }
+    std::string getNewGSFilename() const {return this->newGSFilename; }
+    inline unsigned getSaveStates() const { return this->saveStates; }
+    std::string getSaveStateFileName(int temperature, int step) const{ return this->saveStateFileBasename+"_"+std::to_string(temperature)+"_"+std::to_string(step)+".mfsys"; }
 
     bool debug = false;
     int threadCount=0;
     static Vect size;
     static vector < vector < double > > energyTable;
+    double deltaEnergy;
 
     static void setPBCEnergies(PartArray & sys);
     static void setCSVEnergies(PartArray & sys);
