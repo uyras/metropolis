@@ -26,8 +26,10 @@ Worker::Worker(unsigned num, int seed, const ConfigManager* _config) :
     stepsMade(0),
     _seed(seed),
     config(_config),
+    _previousCalculateStatistics(false),
     e(0, 1024 * 8),
-    e2(0, 2048 * 8)
+    e2(0, 2048 * 8),
+    duration(0)
 {
     generator.seed(seed);
 
@@ -40,10 +42,6 @@ Worker::Worker(unsigned num, int seed, const ConfigManager* _config) :
         {
             ConfigManager::setPBCEnergies(sys);
         }
-    }
-
-    for (auto &cp : calculationParameters){
-        cp->init(&sys); // attach the system and calculate the init value
     }
 
     // print neighbours and energies
@@ -67,6 +65,13 @@ optional< pair<double,string> > Worker::work(unsigned steps, bool calculateStati
 
     uniform_int_distribution<int> intDistr(0, sys.size() - 1); // including right edge
     uniform_real_distribution<double> doubleDistr(0, 1);	   // right edge is not included
+
+    //если вычисление статистики было выключено и включилось, инициировать 
+    if (calculateStatistics && !_previousCalculateStatistics){ 
+        for (auto &cp : calculationParameters){
+            cp->init(&sys); // attach the system and calculate the init value
+        }
+    }
 
     bool isFoundLowest = false; // нашлась или нет более низкая энергия
     string lowestState;
@@ -198,6 +203,7 @@ optional< pair<double,string> > Worker::work(unsigned steps, bool calculateStati
     }
 
     stepsMade += steps;
+    _previousCalculateStatistics = calculateStatistics;
     _stopTimer();
 
     if (isFoundLowest) return make_pair(lowestEnergy,lowestState); else return nullopt;

@@ -18,7 +18,7 @@ public:
 
     virtual void iterate(unsigned id) = 0; // запускается при каждом успешном перевороте спина
     virtual void incrementTotal() = 0; // запускается после каждого шага Метрополиса
-    virtual mpf_class getTotal(unsigned) = 0;
+    virtual mpf_class getTotal(unsigned) = 0; //todo параметр функции - число шагов. Нужно избавиться от него, чтобы этот класс считал его сам
     virtual mpf_class getTotal2(unsigned) = 0;
     double getTotalDouble(unsigned steps) { return getTotal(steps).get_d(); };
     double getTotal2Double(unsigned steps) { return getTotal2(steps).get_d(); };

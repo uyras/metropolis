@@ -79,6 +79,7 @@ monteCarloStatistics montecarlo(ConfigManager *config){
 
 	monteCarloStatistics statData;
 	statData.foundLowerEnergy = false;
+	statData.time_proc_total = 0;
 
 	{ // block to get initial energy
 		const Vect field = config->getField();
@@ -106,7 +107,6 @@ monteCarloStatistics montecarlo(ConfigManager *config){
 	vector <shared_ptr<Worker>> workers(config->temperatures->size());
 	for (int tt = 0; tt < config->temperatures->size(); ++tt){
 		workers[tt] = make_shared<Worker>(tt,config->getSeed() + tt, config);
-		//workers.push_back(Worker());
 		config->getParameters(workers[tt]->calculationParameters);
 	}
 

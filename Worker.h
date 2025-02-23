@@ -23,6 +23,7 @@ private:
     const ConfigManager* config;
     PartArray sys;
     default_random_engine generator;
+    bool _previousCalculateStatistics;
 
     chrono::steady_clock::time_point _startTimePoint;
     void _startTimer();
