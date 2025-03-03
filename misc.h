@@ -7,11 +7,13 @@
 #include <vector>
 #include <algorithm>
 #include <chrono>
+#include <cmath>
 
 using namespace std;
 
-
 //------------------структуры данных--------------------//
+
+typedef vector<signed char> state_t;
 
 /**
  * @brief Структура для сохранения статистики работы Монте-Карло.
@@ -26,7 +28,7 @@ struct monteCarloStatistics {
 	double lowerEnergy;
 	bool foundLowerEnergy;
 	int temperatureOfLowerEnergy;
-	string lowerEnergyState;
+	state_t lowerEnergyState;
 	int64_t time_proc_total;
 };
 
@@ -48,21 +50,34 @@ struct temp_t {
     }
 };
 
+struct Vect{
+    double x;
+    double y;
+    double z;
+};
+
+struct Part{
+    Vect p;
+    Vect m;
+};
 
 
+typedef double (*hamiltonian_t)(const Part&, const Part&);
 
 
 //------------------полезные функции--------------------//
 
 /**
- * @brief На вход получает две текстовые строки, в байтах которых записаны состояния спинов
+ * @brief На вход получает две конфигурации, в которых записаны состояния спинов
  * и делает посимвольный xor для них
  * 
  * @param s1 
  * @param s2 
- * @return std::string 
+ * @return state_t
  */
-std::string xorstr(std::string s1,std::string s2);
+state_t xorstate(const state_t &s1, const state_t &s2);
+
+std::string stateToString(const state_t &state);
 
 
 /**
@@ -73,5 +88,21 @@ std::string xorstr(std::string s1,std::string s2);
  */
 vector < vector < double > > readCSV(string filename);
 
+Vect strToVect(std::string val);
+
+/**
+ * @brief Транслирует координаты периодических граничных условий и возвращает модифицированные координаты
+ * вектора b
+ * 
+ * @param a основной вектор относительно которого делать преобразование координат
+ * @param b вспомогательный вектор который двигаем в пространстве
+ * @param size размер пространственного куба. Если одна из координат задана как 0, то не учитываем ПГУ в этом направлении
+ * @return Vect Модифицированные координаты вектора b, транслированные с учетом ПГУ
+ */
+Vect translatePBC(const Vect &a, const Vect &b, const Vect size);
+
+double distance(const Vect &a, const Vect &b);
+
+double scalar(const Vect &a, const Vect &b);
 
 #endif

@@ -6,7 +6,6 @@
 #include <map>
 #include <gmpxx.h>
 #include <cstdint>
-#include "PartArray.h"
 #include "CalculationParameter.h"
 
 class MagnetisationCore: public CalculationParameter
@@ -15,13 +14,13 @@ class MagnetisationCore: public CalculationParameter
 public:
 
     MagnetisationCore(const std::string & parameterId,
-        PartArray * prototype,
+        shared_ptr<MagneticSystem> prototype,
         const Vect & vector, 
-        const std::vector<uint64_t> & spins);
+        const std::vector<size_t> & spins);
 
     virtual bool check(unsigned) const;
     virtual void printHeader(unsigned) const;
-    virtual bool init(PartArray * sys);
+    virtual bool init(state_t state);
 
     virtual void iterate(unsigned id);
     virtual void incrementTotal();
@@ -38,7 +37,7 @@ private:
     double getFullTotal(const PartArray * _sys) const;
 
     Vect vector;
-    std::vector<uint64_t> spins;
+    std::vector<size_t> spins;
     std::vector< double > magnetisationValues;
 
     double mOld;

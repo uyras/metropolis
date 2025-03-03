@@ -25,58 +25,103 @@ inline void trim(std::string &s) {
     ltrim(s);
 }
 
-std::string xorstr(std::string s1, std::string s2)
+state_t xorstate(const state_t &s1, const state_t &s2)
 {
-	std::string s(s1);
+    state_t s(s1);
 	for (int i=0; i<s1.size(); i++){
-		s[i] = (s1[i]==s2[i])?'0':'1';
+		s[i] = s1[i] * s2[i];
 	}
 	return s;
 }
 
-/*================ outer functions ===================*/
-vector < vector < double > > readCSV(string filename){
-    char delimiter = ';';
-
-    ifstream file(filename);
-    if (!file.is_open()) throw(string("Error reading csv file ") + filename);
-
-    vector < vector < double > > result;
-
-    int linenum = 0;
-    int linecount = -1;
-    do {
-        string line;
-        getline(file,line);
-        trim(line);
-        if (line.length()<2 || line[0]=='#') continue;
-
-        if (linecount==-1){ //read count of columns from the first line
-            linecount = count(line.begin(), line.end(), delimiter)+1;
-            result.resize(linecount);
-            for (int i = 0; i < linecount; ++i)
-                result[i].resize(linecount);
+std::string stateToString(const state_t &state)
+{
+    std::vector<Part*>::const_iterator iter;
+    std::string str="";
+    for (auto s : state){
+        if (s>0){
+            str+="0";
+        } else {
+            str+="1";
         }
-        
-        int colnum = 0;
-        size_t pos = 0;
-        std::string sval;
-        double dval;
-        do {
-            pos = line.find(delimiter);
-            sval = (pos != std::string::npos) ? line.substr(0, pos) : line;
-            if (sval.length()>0)
-                dval = stod(sval);
-            else
-                dval = 0;
-            line.erase(0, pos + 1);
-            result[linenum][colnum] = dval;
-            colnum++;
-            if (colnum>linecount) throw(string("Too much columns in file ") + filename);
-        } while (pos != std::string::npos);
-        linenum++;
-        if (linenum>linecount) throw(string("Too much lines in file ") + filename);
-    } while (!file.eof());
+    }
+    return str;
+}
 
-    return result;
+Vect strToVect(std::string val){
+    Vect target;
+    if (val=="x" || val=="X"){
+        target = {1,0,0};
+    } else {
+        if (val=="y" || val=="Y") 
+            target = {0,1,0}; 
+        else {
+            if (val=="z" || val=="Z")
+                target = {0,0,1};
+            else
+            {
+                auto pos = val.find('|');
+                if (pos!=std::string::npos){
+                    double x = stod(val.substr(0,pos));
+                    auto pos_second = val.find('|',pos+1);
+                    if (pos_second!=std::string::npos){
+                        double y = stod(val.substr(pos+1,pos_second));
+                        double z = stod(val.substr(pos_second+1));
+                        target = {x,y,z};
+                    } else {
+                        double y = stod(val.substr(pos+1));
+                        target = {x,y,0};
+                    }
+                } else {
+                    throw(std::invalid_argument("Vector format is x|y or x|y|z"));
+                }
+            }
+        }
+    }
+    return target;
+}
+
+Vect translatePBC(const Vect &a, const Vect &b, const Vect size)
+{
+    Vect res = b;
+    if (size.x && fabs(a.x - b.x) > size.x/2){
+        if (a.x < b.x){
+            res.x -= size.x;
+        } else {
+            res.x += size.x;
+        }
+    }
+
+    
+    if (size.y && fabs(a.y - b.y) > size.y/2){
+        if (a.y < b.y){
+            res.y -= size.y;
+        } else {
+            res.y += size.y;
+        }
+    }
+
+    if (size.z && fabs(a.z - b.z) > size.z/2){
+        if (a.z < b.z){
+            res.z -= size.z;
+        } else {
+            res.z += size.z;
+        }
+    }
+    return res;
+}
+
+double distance(const Vect &a, const Vect &b)
+{
+    Vect d = {a.x-b.x,a.y-b.y,a.z-b.z};
+    return sqrt(
+        d.x * d.x +
+        d.y * d.y +
+        d.z * d.z
+        );
+}
+
+double scalar(const Vect &a, const Vect &b)
+{
+    return (a.x * b.x) + (a.y * b.y) + (a.z * b.z);
 }

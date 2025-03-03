@@ -13,18 +13,13 @@
 #include <omp.h>
 #include <memory>
 #include <argumentum/argparse.h>
-#include "PartArray.h"
-#include "Part.h"
-#include "CorrelationCore.h"
-#include "CorrelationPointCore.h"
-#include "MagnetisationCore.h"
-#include "MagnetisationLengthCore.h"
 #include "CommandLineParameters.h"
 #include "ConfigManager.h"
 #include "CalculationParameter.h"
 #include <inicpp/inicpp.h>
 #include "misc.h"
 #include "Worker.h"
+#include "MagneticSystem.h"
 
 ConfigManager* readParameters(int argc, char *argv[]){
 
@@ -83,19 +78,10 @@ monteCarloStatistics montecarlo(ConfigManager *config){
 
 	{ // block to get initial energy
 		const Vect field = config->getField();
-		PartArray sys(config->getSystem());
-		if (config->isCSV()){
-			ConfigManager::setCSVEnergies(sys);
-		} else {
-			if (config->isPBC())
-			{
-				ConfigManager::setPBCEnergies(sys);
-			}
-		}
-		statData.initEnergy = sys.E();
-		for (auto p : sys.parts)
+		statData.initEnergy = config->system->E();
+		for (auto &p : config->system->parts)
 		{
-			statData.initEnergy -= p->m.scalar(field);
+			statData.initEnergy -= scalar(p.m, field);
 		}
 		statData.lowerEnergy = statData.initEnergy;
 		config->deltaEnergy = fabs(statData.initEnergy * config->getRestartThreshold()); //todo переделать так чтобы эта дельта расчитывалась всего один раз
@@ -103,7 +89,7 @@ monteCarloStatistics montecarlo(ConfigManager *config){
 
 
 
-	vector< optional< pair<double,string> > > workerResults(config->temperatures->size());
+	vector< optional< pair<double,state_t> > > workerResults(config->temperatures->size());
 	vector <shared_ptr<Worker>> workers(config->temperatures->size());
 	for (int tt = 0; tt < config->temperatures->size(); ++tt){
 		workers[tt] = make_shared<Worker>(tt,config->getSeed() + tt, config);
@@ -151,7 +137,8 @@ monteCarloStatistics montecarlo(ConfigManager *config){
 			{
 				if (config->temperatures->size(tt)>1){
 					for (int r=0; r<config->temperatures->size(tt)-1;++r){
-						Worker::exchange(workers[config->temperatures->to(tt,r)],workers[config->temperatures->to(tt,r+1)]);
+						double dt = config->temperatures->at(tt,r+1) - config->temperatures->at(tt,r);
+						Worker::exchange(workers[config->temperatures->to(tt,r)],workers[config->temperatures->to(tt,r+1)], dt);
 					}
 				}
 			}
@@ -196,18 +183,18 @@ int main(int argc, char *argv[])
 
 	bool programRestarted = false;
 	monteCarloStatistics statData;
-	std::string finalState = config->getSystem().state.toString();
+	state_t finalState = state_t(config->N(),1); // начальное состояние - все единицы. Остальные состояния собираем относительно него
 	do {
 		statData = montecarlo(config); // запуск самих вычислений
 		if (statData.foundLowerEnergy){
-			config->applyState(statData.lowerEnergyState);
+			config->system->applyState(statData.lowerEnergyState);
 			printf("# -- restart MC: found lower energy %g < %g, at %s new state: %s\n",
 			   statData.lowerEnergy,
 			   statData.initEnergy,
 			   config->temperatures->at(statData.temperatureOfLowerEnergy).to_string().c_str(),
-			   statData.lowerEnergyState.c_str());
+			   stateToString(statData.lowerEnergyState).c_str());
 			programRestarted = true;
-			finalState = xorstr(finalState,statData.lowerEnergyState);
+			finalState = xorstate(finalState,statData.lowerEnergyState);
 		}
 	} while(statData.foundLowerEnergy);
 
@@ -228,9 +215,9 @@ int main(int argc, char *argv[])
 		//printf("# Command to delete this lines:\n");
 		//printf("#    perl -p0e -i 's/(# 1:T[^\\n]+\\n).+# -- restart MC: found[^\\n]+\\n/$1/s'   <filename>\n#\n");
 
-		printf("# configuration of the lowest energy: %s\n",finalState.c_str());
+		printf("# configuration of the lowest energy: %s\n",stateToString(finalState).c_str());
 		if (!config->getNewGSFilename().empty()){
-			config->saveSystem(config->getNewGSFilename());
+			config->system->save(config->getNewGSFilename());
 			printf("# system with found lowest energy is saved to file %s\n",config->getNewGSFilename().c_str());
 		}
 	}

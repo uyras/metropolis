@@ -12,18 +12,26 @@ void Worker::_stopTimer()
 
 double Worker::fullRefreshEnergy()
 {   
-    double eOld = sys.E();
-    // add external field
-    for (auto p : sys.parts)
-    {
-        eOld -= p->m.scalar(config->getField());
+    double eOld = 0;
+    for (size_t i=0; i<config->system->size(); i++){
+        size_t nf = config->system->neighbours_from[i];
+        size_t nc = config->system->neighbours_count[i];
+        for (size_t k = nf; k < nf + nc; k++){
+            eOld +=  config->system->eMatrix[k] * state[i] * state[config->system->neighbourNums[k]];
+        }
+
+        eOld -= scalar(config->system->parts[i].m, config->getField()) * state[i];
     }
+
     return eOld;
 }
 
 Worker::Worker(unsigned num, int seed, const ConfigManager* _config) : 
     _num(num),
-    stepsMade(0),
+    stepsMadeDummy(0),
+    stepsAcceptedDummy(0),
+    stepsMadeCalculate(0),
+    stepsAcceptedCalculate(0),
     _seed(seed),
     config(_config),
     _previousCalculateStatistics(false),
@@ -32,17 +40,8 @@ Worker::Worker(unsigned num, int seed, const ConfigManager* _config) :
     duration(0)
 {
     generator.seed(seed);
-
-    this->sys = PartArray(config->getSystem());
-
-    if (config->isCSV()){
-        ConfigManager::setCSVEnergies(sys);
-    } else {
-        if (config->isPBC())
-        {
-            ConfigManager::setPBCEnergies(sys);
-        }
-    }
+    state.clear();
+    state.resize(config->N(),1);
 
     // print neighbours and energies
 	/*cout<<sys.E()<<endl;
@@ -57,81 +56,63 @@ Worker::Worker(unsigned num, int seed, const ConfigManager* _config) :
 	}*/
 }
 
-optional< pair<double,string> > Worker::work(unsigned steps, bool calculateStatistics, double lowestEnergy)
+optional< pair<double,state_t> > Worker::work(unsigned steps, bool calculateStatistics, double lowestEnergy)
 {
     _startTimer();
 
     temp_t temperature = config->temperatures->at(_num);
 
-    uniform_int_distribution<int> intDistr(0, sys.size() - 1); // including right edge
+    uniform_int_distribution<int> intDistr(0, config->N() - 1); // including right edge
     uniform_real_distribution<double> doubleDistr(0, 1);	   // right edge is not included
 
     //если вычисление статистики было выключено и включилось, инициировать 
     if (calculateStatistics && !_previousCalculateStatistics){ 
         for (auto &cp : calculationParameters){
-            cp->init(&sys); // attach the system and calculate the init value
+            cp->init(state); // attach the system and calculate the init value
         }
     }
 
     bool isFoundLowest = false; // нашлась или нет более низкая энергия
-    string lowestState;
+    state_t lowestState;
 
     bool swapRes;
     unsigned swapNum;
     const Vect field = config->getField();
-    double eOld;
 
     double dE, p, randNum;
 
     bool acceptSweep;
+    const unsigned stepsMade = (calculateStatistics) ? this->stepsMadeCalculate : this->stepsMadeDummy;
 
     for (unsigned step = 0; step < steps; ++step)
     {
-        if ((this->stepsMade + step) == 0 || (this->stepsMade + step) % FULL_REFRESH_EVERY == 0)
+        if ((stepsMade + step) == 0 || (stepsMade + step) % FULL_REFRESH_EVERY == 0)
         {
-            eOld = this->fullRefreshEnergy();
+            eActual = this->fullRefreshEnergy();
             if (config->isRestart() && isFoundLowest){
                 break;
             }
         }
 
-        for (unsigned sstep = 0; sstep < sys.size(); ++sstep)
+        for (unsigned sstep = 0; sstep < config->N(); ++sstep)
         {
 
             dE = 0;
             swapNum = intDistr(generator);
-            Part *partA = sys.getById(swapNum);
 
             { // get dE
-                unsigned j = 0;
-
-                if (sys.interactionRange() != 0.0)
+                for (
+                    size_t neigh = config->system->neighbours_from[swapNum]; 
+                    neigh < config->system->neighbours_from[swapNum] + config->system->neighbours_count[swapNum]; 
+                    neigh++)
                 {
-                    for (Part *neigh : sys.neighbours[swapNum])
-                    {
-                        if (neigh->state == partA->state) // assume it is rotated, inverse state in mind
-                            dE -= 2. * sys.eAt(swapNum, j);
-                        else
-                            dE += 2. * sys.eAt(swapNum, j);
-                        ++j;
-                    }
-                }
-                else
-                {
-                    for (Part *neigh : sys.parts)
-                    {
-                        if (partA != neigh)
-                        {
-                            if (neigh->state == partA->state)
-                                dE -= 2. * sys.eAt(swapNum, j);
-                            else
-                                dE += 2. * sys.eAt(swapNum, j);
-                            ++j;
-                        }
-                    }
+                    if (state[config->system->neighbourNums[neigh]] == state[swapNum]) // assume it is rotated, inverse state in mind
+                        dE -= 2. * config->system->eMatrix[neigh];
+                    else
+                        dE += 2. * config->system->eMatrix[neigh];
                 }
 
-                dE += 2 * partA->m.scalar(field);
+                dE += 2 * scalar(config->system->parts[swapNum].m, field);
             }
 
             acceptSweep = false;
@@ -151,37 +132,32 @@ optional< pair<double,string> > Worker::work(unsigned steps, bool calculateStati
 
             if (acceptSweep)
             {
-                sys.parts[swapNum]->rotate(false);
-                eOld += dE;
+                if (calculateStatistics) this->stepsAcceptedCalculate++; else this->stepsAcceptedDummy++;
+                state[swapNum] *= -1;
+                eActual += dE;
 
                 for (auto &cp : calculationParameters)
                 {
-                    cp->iterate(partA->Id());
+                    cp->iterate(swapNum);
                 }
 
                 if (config->debug)
                 {
                     // recalc energy
-                    double eTmp = sys.E();
+                    double eTmp = fullRefreshEnergy();
 
-                    // add external field
-                    for (auto pt : sys.parts)
+                    if (fabs(eTmp - eActual) > 0.00001)
                     {
-                        eTmp -= pt->m.scalar(field);
-                    }
-
-                    if (fabs(eTmp - eOld) > 0.00001)
-                    {
-                        cerr << "# (dbg main#" << calculateStatistics << ") energy is different. iterative: " << eOld << "; actual: " << eTmp << endl;
+                        cerr << "# (dbg main#" << calculateStatistics << ") energy is different. iterative: " << eActual << "; actual: " << eTmp << endl;
                     }
                 }
 
                 
-                if (config->isRestart() && (eOld - lowestEnergy) < -config->deltaEnergy) // if found lower energy
+                if (config->isRestart() && (eActual - lowestEnergy) < -config->deltaEnergy) // if found lower energy
                 {
                     isFoundLowest = true;
-                    lowestEnergy = eOld;
-                    lowestState = sys.state.toString();
+                    lowestEnergy = eActual;
+                    lowestState = state;
                 }
             }
         }
@@ -189,20 +165,20 @@ optional< pair<double,string> > Worker::work(unsigned steps, bool calculateStati
         // update thermodynamic averages (porosyenok ;)
         if (calculateStatistics)
         {
-            e += eOld;
-            e2 += eOld * eOld;
+            e += eActual;
+            e2 += eActual * eActual;
             for (auto &cp : calculationParameters)
             {
                 cp->incrementTotal();
             }
 
             if (config->getSaveStates()>0 && (stepsMade+step) % config->getSaveStates() == 0){
-                sys.save( config->getSaveStateFileName(_num,step) );
+                config->system->save( config->getSaveStateFileName(_num,step), state );
             }
         }
     }
 
-    stepsMade += steps;
+    if (calculateStatistics) this->stepsMadeCalculate += steps; else this->stepsMadeDummy += steps;
     _previousCalculateStatistics = calculateStatistics;
     _stopTimer();
 
@@ -214,7 +190,7 @@ void Worker::printout(temp_t temperature)
     mpf_class ee = e / config->getCalculate();
     mpf_class ee2 = e2 / config->getCalculate();
 
-    mpf_class cT = (ee2 - (ee * ee)) / (temperature.t * temperature.t * sys.size());
+    mpf_class cT = (ee2 - (ee * ee)) / (temperature.t * temperature.t * config->N());
 
     {
         gmp_printf("%e %.30Fe %.30Fe %.30Fe %d %d",
@@ -244,10 +220,18 @@ void Worker::printout_service()
         duration.count() / 1000.,
         config->temperatures->at(_num).to_string().c_str(),
         this->fullRefreshEnergy(),
-        sys.state.toString().c_str());
+        stateToString(state).c_str());
 }
 
-bool Worker::exchange(const shared_ptr<Worker> w1, const shared_ptr<Worker> w2)
+bool Worker::exchange(const shared_ptr<Worker> w1, const shared_ptr<Worker> w2, double dT)
 {
-    return false;
+    uniform_real_distribution<double> doubleDistr(0, 1);	   // right edge is not included
+    double dE = w2->eActual - w1->eActual;
+    double p = exp(dE/dT);
+    double randNum = doubleDistr(w1->generator);
+    if (randNum <= p)
+    {
+        //todo тут добавить обмен конфигурациями между репликами. Но для этого сперва надо переделать всю магнитную систему
+        return true;
+    } else return false;
 }

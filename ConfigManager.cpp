@@ -1,8 +1,5 @@
 #include "ConfigManager.h"
 
-Vect ConfigManager::size;
-vector < vector < double > > ConfigManager::energyTable;
-
 ConfigManager::ConfigManager(
     const CommandLineParameters & commandLineParameters, 
     const inicpp::config & iniconfig)
@@ -10,7 +7,12 @@ ConfigManager::ConfigManager(
 
     vector<double> base_temperatures;
 
+    Vect size = {0,0,0};
+    double range = 0;
+    hamiltonian_t ham = hamiltonian_selector("dipolar");
+
     if (iniconfig.contains("main")){
+
         inicpp::section sect = iniconfig["main"];
         if (sect.contains("file")) this->sysfile = sect["file"].get<inicpp::string_ini_t>();
         if (sect.contains("heatup")) this->heatup = sect["heatup"].get<inicpp::unsigned_ini_t>();
@@ -18,19 +20,12 @@ ConfigManager::ConfigManager(
         if (sect.contains("range")) this->range = sect["range"].get<inicpp::float_ini_t>();
         if (sect.contains("seed")) this->seed = sect["seed"].get<inicpp::unsigned_ini_t>();
         if (sect.contains("temperature")) base_temperatures = sect["temperature"].get_list<inicpp::float_ini_t>();
-        if (sect.contains("boundaries") && sect["boundaries"].get<inicpp::string_ini_t>()=="periodic") 
-        this->pbc = true;
-        if (sect.contains("size")) {
-            ConfigManager::size =
-             ConfigManager::strToVect(sect["size"].get<inicpp::string_ini_t>());
-        } else if (this->pbc) {
-            throw std::invalid_argument("You have to set the \"size\" parameter when using boundaries=periodic");
-        }
+        if (sect.contains("size")) size = strToVect(sect["size"].get<inicpp::string_ini_t>());
         
         if (sect.contains("field")) 
-            this->field = ConfigManager::strToVect(sect["field"].get<inicpp::string_ini_t>());
+            this->field = strToVect(sect["field"].get<inicpp::string_ini_t>());
         else
-            this->field.setXYZ(0,0,0);
+            this->field = {0,0,0};
 
         if (sect.contains("debug")) this->debug = sect["debug"].get<inicpp::boolean_ini_t>();
 
@@ -48,7 +43,7 @@ ConfigManager::ConfigManager(
     if (commandLineParameters.cSteps != -1)
         this->calculate = commandLineParameters.cSteps;
     if (!isnan(commandLineParameters.iRange))
-        this->range = commandLineParameters.iRange;
+        range = commandLineParameters.iRange;
     if (commandLineParameters.rseed!=-1)
         this->seed = commandLineParameters.rseed;
     if (commandLineParameters.temperatures.size()>0)
@@ -62,39 +57,11 @@ ConfigManager::ConfigManager(
     }
     this->temperatures->init();
 
-    if (this->sysfile.compare(this->sysfile.length()-4,string::npos,".csv") == 0){ //if filename ends with .csv
-        if (this->isPBC()) throw(std::invalid_argument("PBC option is not working when you load .csv - files"));
-
-        this->_csv = true;
-
-        ConfigManager::energyTable = readCSV(this->sysfile);
-        this->range = 1;
-        this->system.setInteractionRange(this->range); //non-zero to avoid problems
-        this->system.parts.reserve(ConfigManager::energyTable.size());
-        Part* temp;
-        for (int i=0; i<ConfigManager::energyTable.size(); i++){
-            temp = new Part();
-            temp->pos.setXYZ(0,0,0);
-            temp->m.setXYZ(1,0,0);
-            this->system.add(temp);
-        }
-        ConfigManager::setCSVEnergies(this->system);
-    } else if (this->sysfile.compare(this->sysfile.length()-6,string::npos,".mfsys") == 0) { //if filename ends with .mfsys
-        this->_csv = false;
-        this->system.load(this->sysfile);
-        this->system.state.hardReset();
-        this->system.setInteractionRange(this->range);
-        if (this->isPBC()){
-            ConfigManager::setPBCEnergies(this->system);
-        }
-    } else {
-        throw(std::invalid_argument("Workg input file extention. Only mfsys and csv files are supported!"));
-    }
-
+    this->system = make_shared<MagneticSystem>(this->sysfile,range,size,ham);
     
     this->saveStates = commandLineParameters.saveStates;
     this->saveStateFileBasename = this->sysfile.substr(0, this->sysfile.find_last_of("."));
-
+/*
     for (auto & sect: iniconfig){
         const std::string parameterString = sect.get_name();
 
@@ -218,7 +185,16 @@ ConfigManager::ConfigManager(
             throw(std::invalid_argument("Parameter " + parameterName + " is unknown"));
         }
     }
+*/
 
+    //obtain the avaliable number of threads
+    #pragma omp parallel
+    {
+        #pragma omp single
+        {
+            threadCount = omp_get_num_threads();
+        }
+    }
     return;
 }
 
@@ -236,7 +212,7 @@ bool ConfigManager::check_config()
 
     //check parameters of the core
     for (auto & co : parameters){
-        if (!co->check(this->system.size())) return false;
+        if (!co->check(this->system->size())) return false;
     }
 
     return true;
@@ -244,46 +220,17 @@ bool ConfigManager::check_config()
 
 void ConfigManager::printHeader()
 {
-    //obtain the avaliable number of threads
-    #pragma omp parallel
+    double e = this->system->E();
+    for (auto p : this->system->parts)
     {
-        #pragma omp single
-        {
-            threadCount = omp_get_num_threads();
-        }
-    }
-
-    double avgNeighb = 0;
-    for (int i=0; i<this->system.size(); ++i)
-        avgNeighb += this->system.neighbourSize(i);
-    avgNeighb /= this->system.size();
-
-    double e = system.E();
-    for (auto p : this->system.parts)
-    {
-        e -= p->m.scalar(field);
+        e -= scalar(p.m, this->field);
     }
 
     printf("# Metropolis algorithm for calculating heating capacity v%s\n",METROPOLIS_VERSION);
-
     printf("#   sysfile: %s\n",this->sysfile.c_str());
-    printf("#    system: %d spins, ", this->system.size());
-    if (!this->isCSV()) printf("%f interaction range, ", this->range);
-    printf("%f avg. neighbours\n", avgNeighb);
-    printf("#   physics: energy: %g, ext.filed: (%g,%g,%g), ",e,this->field.x,this->field.y,this->field.z);
-    if (this->isCSV())
-        printf("hamiltonian: csv, ");
-    else
-        printf("hamiltonian: dipole, ");
-    printf("space: 2D\n");
-    if (!this->isCSV()) {
-        printf("#    bounds: ");
-        if (this->isPBC()){
-            printf("periodic, system size: (%g,%g,%g)\n",ConfigManager::size.x,ConfigManager::size.y,ConfigManager::size.z);
-        } else {
-            printf("open\n");
-        }
-    }
+
+    this->system->printHeader(this->field);
+
     printf("#        MC: %u heatup, %u compute steps\n",this->heatup,this->calculate);
     if (this->isRestart())
         printf("#   restart: enabled, delta E threshold: %g*energy=%g\n",
@@ -321,127 +268,10 @@ void ConfigManager::printHeader()
     fflush(stdout);
 }
 
-void ConfigManager::applyState(string s)
-{ 
-    this->system.state.fromString(s);
-    this->system.state.hardReset();
-    this->system.setInteractionRange(this->range);
-    if (this->isCSV()){
-        ConfigManager::setCSVEnergies(this->system);
-    } else {
-        if (this->isPBC())
-        {
-            ConfigManager::setPBCEnergies(this->system);
-        }
-    }
-}
-
 void ConfigManager::getParameters(std::vector< std::unique_ptr< CalculationParameter > > & calculationParameters)
 {
     for (auto & co : parameters){
         calculationParameters.push_back(std::unique_ptr<CalculationParameter>(co->copy()));
     }
     return;
-}
-
-void ConfigManager::setPBCEnergies(PartArray & sys)
-{
-    // first update all neighbours
-    sys.neighbours.clear();
-
-    //определяем соседей частицы
-    if (sys.interactionRange() != 0.){ //только если не все со всеми
-        sys.neighbours.resize(sys.size());
-        Part *part, *temp;
-        for (unsigned i=0; i<sys.size(); i++){
-            sys.neighbours[i].clear();
-            part = sys[i];
-            vector<Part*>::iterator iter = sys.parts.begin();
-            while(iter!=sys.parts.end()){
-                temp = *iter;
-                if (temp != part && radiusPBC(part->pos,temp->pos).length() < sys.interactionRange()){
-                    sys.neighbours[i].push_front(temp);
-                }
-                iter++;
-            }
-        }
-    }
-    sys.changeSystem();
-
-    //then set the hamiltonian
-    sys.setHamiltonian(hamiltonianDipolarPBC);
-}
-
-
-
-double hamiltonianDipolarPBC(Part *a, Part *b)
-{
-    Vect rij = radiusPBC(b->pos,a->pos);
-    double r2, r, r5,E;
-    r2 = rij.x * rij.x + rij.y * rij.y + rij.z * rij.z;
-    r = sqrt(r2); //трудное место, заменить бы
-    r5 = r2 * r2 * r; //радиус в пятой
-    
-    E = //энергия считается векторным методом, так как она не нужна для каждой оси
-            (( (a->m.x * b->m.x + a->m.y * b->m.y + a->m.z * b->m.z) * r2)
-                -
-                (3 * (b->m.x * rij.x + b->m.y * rij.y + b->m.z * rij.z) * (a->m.x * rij.x + a->m.y * rij.y + a->m.z * rij.z)  )) / r5;
-    return E;
-}
-
-Vect radiusPBC(const Vect& a, const Vect& b){
-    Vect dist = a - b;
-    if (fabs(dist.x) > ConfigManager::size.x/2){
-        if (a.x < b.x){
-            dist.x += ConfigManager::size.x;
-        } else {
-            dist.x -= ConfigManager::size.x;
-        }
-    }
-
-    if (fabs(dist.y) > ConfigManager::size.y/2){
-        if (a.y < b.y){
-            dist.y += ConfigManager::size.y;
-        } else {
-            dist.y -= ConfigManager::size.y;
-        }
-    }
-
-    if (fabs(dist.z) > ConfigManager::size.z/2){
-        if (a.z < b.z){
-            dist.z += ConfigManager::size.z;
-        } else {
-            dist.z -= ConfigManager::size.z;
-        }
-    }
-    
-    return dist;
-}
-
-void ConfigManager::setCSVEnergies(PartArray & sys)
-{
-    // first update all neighbours
-    sys.neighbours.clear();
-    sys.neighbours.resize(sys.parts.size());
-    auto a = sys.parts.begin();
-    for (auto line : ConfigManager::energyTable){
-        auto b = sys.parts.begin();
-        for (double cell : line){
-            if ( cell != 0.0 ){
-                sys.neighbours[(*a)->Id()].push_front(*b);
-            }
-            b++;
-        }
-        a++;
-    }
-
-    sys.changeSystem();
-
-    //then set the hamiltonian
-    sys.setHamiltonian(hamiltonianDipolarCSV);
-}
-
-double hamiltonianDipolarCSV(Part *b, Part *a)
-{
-    return ConfigManager::energyTable[a->Id()][b->Id()] * a->m.x * b->m.x;
 }

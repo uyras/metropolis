@@ -66,7 +66,7 @@ void MagnetisationCore::printHeader(unsigned num) const
     return;
 }
 
-bool MagnetisationCore::init(PartArray * sys)
+bool MagnetisationCore::init(state_t state)
 {
 
     //clear

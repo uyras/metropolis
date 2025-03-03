@@ -2,19 +2,52 @@
 #define CALCULATIONPARAMETER_H
 
 #include <string>
+#include <memory>
 #include <gmpxx.h>
-#include "PartArray.h"
+#include "misc.h"
+#include "MagneticSystem.h"
 
+/**
+ * @brief Класс используется как шаблон для дополнительных вычисляемых параметров
+ * Вычисляемый параметр - значение магнитной системы, которое собирается статистически во время МК-семплирования
+ * Каждый вычисляемый параметр работает независимо для каждой температуры.
+ * Ярким примером является намагниченность, определяемая как сумма векторов магнитных моментов 
+ * вдоль определенного направления. На этом примере будет дальнейшее объяснение.
+ * 
+ * Параметр должен собирать среднее значение, и квадрат среднего значения (для удобного вычисления производных).
+ * Так как расчет параметра бывает вычислительно-накладным, 
+ * то добавлена возможность его итеративного вычисления.
+ * 
+ * При каждом успешном перевороте спина выполняется функция iterate(id) где id - номер перевернутого спина.
+ * Шаг Метрополиса - N попыток перевернуть случайный спин. После каждого шага запускается
+ * функция incrementTotal(). Она позволяет
+ * 
+ */
 class CalculationParameter
 {
 public:
-    CalculationParameter(const std::string & parameterId, PartArray * prototype):
+
+    /**
+     * @brief Создает новый объект с вычисляемым параметром
+     * 
+     * @param parameterId id параметра. Обязателен для всех параметров.
+     * @param prototype Прототип магнитной системы. Пока не понятно нафиг нужен
+     */
+    CalculationParameter(const std::string & parameterId, shared_ptr<MagneticSystem> prototype):
         _debug(false),_parameterId(parameterId),prototype(prototype) {};
     std::string parameterId() const {return this->_parameterId;}
     void setDebug(){this->_debug = true;}
     virtual bool check(unsigned) const = 0;
     virtual void printHeader(unsigned) const = 0;
-    virtual bool init(PartArray * sys) {this->sys = sys; return true;};
+
+    /**
+     * @brief Инициирует внутренние значения класса для того чтобы работал iterate.
+     * Запускается когда в системе изменилось более одного спина. Функция может быть запущена несколько раз
+     * в любой момент работы программы. Например, при обмене репликами.
+     * 
+     * @param state конфигурация магнитной системы, для которой инициировать состояние
+     */
+    virtual void init(state_t state) = 0;
 
     virtual void iterate(unsigned id) = 0; // запускается при каждом успешном перевороте спина
     virtual void incrementTotal() = 0; // запускается после каждого шага Метрополиса
@@ -36,13 +69,7 @@ public:
 
 protected:
     bool _debug;
-    PartArray * sys;
-    const PartArray * prototype;
-
-    void prototypeInit(PartArray* prototype){
-        this->init(prototype);
-        //this->sys = nullptr;
-    }
+    shared_ptr<MagneticSystem> prototype;
 
 private:
     std::string _parameterId;

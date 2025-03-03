@@ -8,7 +8,6 @@
 #include <optional>
 #include <utility>
 #include <omp.h>
-#include "PartArray.h"
 #include "misc.h"
 #include "defines.h"
 #include "ConfigManager.h"
@@ -18,10 +17,13 @@ using namespace std;
 class Worker {
 private:
     unsigned _num; //номер воркера
-    unsigned stepsMade;
+    unsigned stepsMadeDummy; // сколько шагов сделано с calculateStatistics=False
+    unsigned stepsAcceptedDummy; // сколько успешных переворотов для прогревных шагов
+    unsigned stepsMadeCalculate; // сколько шагов сделано с calculateStatistics=True
+    unsigned stepsAcceptedCalculate; // сколько успешных переворотов для боевых шагов
     int _seed;
     const ConfigManager* config;
-    PartArray sys;
+    state_t state;
     default_random_engine generator;
     bool _previousCalculateStatistics;
 
@@ -32,8 +34,6 @@ private:
 
 public:
     Worker(unsigned num, int seed, const ConfigManager* _config);
-    Worker(const Worker&) = delete; //явно отключаем конструктор копирования, чтобы добавление этого класса в вектор работало корректно
-    Worker(Worker&&) = delete;
 
     /**
      * @brief Основной процесс который выполняет вычисления. 
@@ -48,7 +48,7 @@ public:
      * @return optional< pair<double,string> > возвращает пустое значение если не нашлось энергии ниже, 
      * либо пару - минимальную энергию и соответствующую ей конфигурацию в виде строки
      */
-    optional< pair<double,string> > work(unsigned steps, bool calculateStatistics, double lowestEnergy);
+    optional< pair<double,state_t> > work(unsigned steps, bool calculateStatistics, double lowestEnergy);
 
     void printout(temp_t temperature);
 
@@ -56,11 +56,12 @@ public:
 
     mpf_class e;
     mpf_class e2;
+    double eActual; // энергия текущей конфигурации системы. Обновляется итеративно при каждом перевороте. иногда полностью пересчитывается
     chrono::milliseconds duration;
     vector<std::unique_ptr<CalculationParameter>> calculationParameters;
 
 
-    static bool exchange(const shared_ptr<Worker> w1, const shared_ptr<Worker> w2);
+    static bool exchange(const shared_ptr<Worker> w1, const shared_ptr<Worker> w2, double dT);
 };
 
 #endif //WORKER_H
