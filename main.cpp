@@ -187,7 +187,6 @@ int main(int argc, char *argv[])
 	do {
 		statData = montecarlo(config); // запуск самих вычислений
 		if (statData.foundLowerEnergy){
-			config->system->applyState(statData.lowerEnergyState);
 			printf("# -- restart MC: found lower energy %g < %g, at %s new state: %s\n",
 			   statData.lowerEnergy,
 			   statData.initEnergy,
@@ -195,6 +194,7 @@ int main(int argc, char *argv[])
 			   stateToString(statData.lowerEnergyState).c_str());
 			programRestarted = true;
 			finalState = xorstate(finalState,statData.lowerEnergyState);
+			config->system->applyState(finalState);
 		}
 	} while(statData.foundLowerEnergy);
 

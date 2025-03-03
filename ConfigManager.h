@@ -31,7 +31,6 @@ private:
     std::string sysfile;
     unsigned heatup = 0;
     unsigned calculate = 0;
-    double range = 0;
     int seed = 0;
     Vect field;
     bool restart = true;

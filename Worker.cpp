@@ -17,7 +17,7 @@ double Worker::fullRefreshEnergy()
         size_t nf = config->system->neighbours_from[i];
         size_t nc = config->system->neighbours_count[i];
         for (size_t k = nf; k < nf + nc; k++){
-            eOld +=  config->system->eMatrix[k] * state[i] * state[config->system->neighbourNums[k]];
+            eOld +=  config->system->eMatrix[k] * state[i] * state[config->system->neighbourNums[k]] / 2;
         }
 
         eOld -= scalar(config->system->parts[i].m, config->getField()) * state[i];

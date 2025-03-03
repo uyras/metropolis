@@ -17,7 +17,7 @@ ConfigManager::ConfigManager(
         if (sect.contains("file")) this->sysfile = sect["file"].get<inicpp::string_ini_t>();
         if (sect.contains("heatup")) this->heatup = sect["heatup"].get<inicpp::unsigned_ini_t>();
         if (sect.contains("calculate")) this->calculate = sect["calculate"].get<inicpp::unsigned_ini_t>();
-        if (sect.contains("range")) this->range = sect["range"].get<inicpp::float_ini_t>();
+        if (sect.contains("range")) range = sect["range"].get<inicpp::float_ini_t>();
         if (sect.contains("seed")) this->seed = sect["seed"].get<inicpp::unsigned_ini_t>();
         if (sect.contains("temperature")) base_temperatures = sect["temperature"].get_list<inicpp::float_ini_t>();
         if (sect.contains("size")) size = strToVect(sect["size"].get<inicpp::string_ini_t>());

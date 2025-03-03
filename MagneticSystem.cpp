@@ -257,7 +257,7 @@ void MagneticSystem::buildEnergyTable()
             if (i!=j){
                 if (_range==0 || distance(parts[i].p,tmp.p) < _range){ // если range==0 то считаем все со всеми
                     tmp.m = parts[j].m;
-                    double e = (*_hamiltonian)(parts[i],parts[j]);
+                    double e = (*_hamiltonian)(parts[i],tmp);
                     this->eMatrix.push_back( e );
                     this->neighbourNums.push_back(j);
                     nCount++;
