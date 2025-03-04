@@ -60,6 +60,9 @@ optional< pair<double,state_t> > Worker::work(unsigned steps, bool calculateStat
 {
     _startTimer();
 
+    //создаем алиас для объекта магнитной системы
+    const MagneticSystem &sys = *(config->system);
+
     temp_t temperature = config->temperatures->at(_num);
 
     uniform_int_distribution<int> intDistr(0, config->N() - 1); // including right edge
@@ -77,6 +80,8 @@ optional< pair<double,state_t> > Worker::work(unsigned steps, bool calculateStat
 
     bool swapRes;
     unsigned swapNum;
+    size_t neighbours_from; //порядковый номер в массиве соседей, начало
+    size_t neighbours_to; //порядковый номер в массиве соседей, конец
     const Vect field = config->getField();
 
     double dE, p, randNum;
@@ -99,20 +104,19 @@ optional< pair<double,state_t> > Worker::work(unsigned steps, bool calculateStat
 
             dE = 0;
             swapNum = intDistr(generator);
+            neighbours_from = sys.neighbours_from[swapNum];
+            neighbours_to = sys.neighbours_from[swapNum] + sys.neighbours_count[swapNum];
 
             { // get dE
-                for (
-                    size_t neigh = config->system->neighbours_from[swapNum]; 
-                    neigh < config->system->neighbours_from[swapNum] + config->system->neighbours_count[swapNum]; 
-                    neigh++)
+                for (size_t neigh = neighbours_from; neigh < neighbours_to; neigh++)
                 {
-                    if (state[config->system->neighbourNums[neigh]] == state[swapNum]) // assume it is rotated, inverse state in mind
-                        dE -= 2. * config->system->eMatrix[neigh];
+                    if (state[sys.neighbourNums[neigh]] == state[swapNum]) // assume it is rotated, inverse state in mind
+                        dE -= 2. * sys.eMatrix[neigh];
                     else
-                        dE += 2. * config->system->eMatrix[neigh];
+                        dE += 2. * sys.eMatrix[neigh];
                 }
 
-                dE += 2 * scalar(config->system->parts[swapNum].m, field);
+                dE += 2 * scalar(sys.parts[swapNum].m, field);
             }
 
             acceptSweep = false;
@@ -173,7 +177,7 @@ optional< pair<double,state_t> > Worker::work(unsigned steps, bool calculateStat
             }
 
             if (config->getSaveStates()>0 && (stepsMade+step) % config->getSaveStates() == 0){
-                config->system->save( config->getSaveStateFileName(_num,step), state );
+                sys.save( config->getSaveStateFileName(_num,step), state );
             }
         }
     }
