@@ -12,7 +12,7 @@ ConfigManager::ConfigManager(
     hamiltonian_t ham = hamiltonian_selector("dipolar");
 
     if (iniconfig.contains("main")){
-
+        //todo добавить warning о том чтоо boundaries уже не используется 
         inicpp::section sect = iniconfig["main"];
         if (sect.contains("file")) this->sysfile = sect["file"].get<inicpp::string_ini_t>();
         if (sect.contains("heatup")) this->heatup = sect["heatup"].get<inicpp::unsigned_ini_t>();
