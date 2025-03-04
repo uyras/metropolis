@@ -116,7 +116,7 @@ optional< pair<double,state_t> > Worker::work(unsigned steps, bool calculateStat
                         dE += 2. * sys.eMatrix[neigh];
                 }
 
-                dE += 2 * scalar(sys.parts[swapNum].m, field);
+                dE += 2 * scalar(sys.parts[swapNum].m, field) * state[swapNum];
             }
 
             acceptSweep = false;
@@ -152,7 +152,7 @@ optional< pair<double,state_t> > Worker::work(unsigned steps, bool calculateStat
 
                     if (fabs(eTmp - eActual) > 0.00001)
                     {
-                        cerr << "# (dbg main#" << calculateStatistics << ") energy is different. iterative: " << eActual << "; actual: " << eTmp << endl;
+                        cerr << "# (dbg main#" << _num << ") energy is different. iterative: " << eActual << "; actual: " << eTmp << endl;
                     }
                 }
 
