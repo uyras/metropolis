@@ -227,15 +227,17 @@ void Worker::printout_service()
         stateToString(state).c_str());
 }
 
-bool Worker::exchange(const shared_ptr<Worker> w1, const shared_ptr<Worker> w2, double dT)
+bool Worker::exchange(shared_ptr<Worker> w1, shared_ptr<Worker> w2, double dBeta)
 {
     uniform_real_distribution<double> doubleDistr(0, 1);	   // right edge is not included
     double dE = w2->eActual - w1->eActual;
-    double p = exp(dE/dT);
+    double p = exp(dE/dBeta);
     double randNum = doubleDistr(w1->generator);
     if (randNum <= p)
     {
-        //todo тут добавить обмен конфигурациями между репликами. Но для этого сперва надо переделать всю магнитную систему
+        swap(w1->state,w2->state);
+        swap(w1->eActual,w2->eActual);
+        //todo тут добавить обмен между доп параметрами, так как у основных систем резко сменилось состояние
         return true;
     } else return false;
 }

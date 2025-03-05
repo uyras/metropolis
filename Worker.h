@@ -61,7 +61,7 @@ public:
     vector<std::unique_ptr<CalculationParameter>> calculationParameters;
 
 
-    static bool exchange(const shared_ptr<Worker> w1, const shared_ptr<Worker> w2, double dT);
+    static bool exchange(shared_ptr<Worker> w1, shared_ptr<Worker> w2, double dBeta);
 };
 
 #endif //WORKER_H

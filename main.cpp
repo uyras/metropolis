@@ -89,8 +89,9 @@ monteCarloStatistics montecarlo(ConfigManager *config){
 			{
 				if (config->temperatures->size(tt)>1){
 					for (int r=0; r<config->temperatures->size(tt)-1;++r){
-						double dt = config->temperatures->at(tt,r+1) - config->temperatures->at(tt,r);
-						Worker::exchange(workers[config->temperatures->to(tt,r)],workers[config->temperatures->to(tt,r+1)], dt);
+						double dBeta = (1/config->temperatures->at(tt,r+1)) - (1/config->temperatures->at(tt,r));
+						bool rr = Worker::exchange(workers[config->temperatures->to(tt,r)],workers[config->temperatures->to(tt,r+1)], dBeta);
+						//printf("## ----- p=%u, s=%u, n=%d;r=%d;T=%g, exch=%d\n",phase,step,tt,r,config->temperatures->at(tt,r),rr);
 					}
 				}
 			}
