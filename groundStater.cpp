@@ -75,7 +75,7 @@ int main(int argc, char* argv[])
     uniform_real_distribution<double> doubleDistr(0,1); // right edge is not included
 
     if (N==0){
-        throw(std::logic_error("System size is 0 or file not found"));
+        throw(std::string("System size is 0 or file not found"));
     }
 
     cout<<"Run monte-carlo for "<<time_secs<<" seconds"<<endl;

@@ -47,7 +47,7 @@ public:
     double deltaEnergy;
     PtBalancerInterface * temperatures = nullptr; // указатель на класс балансира параллельного отжига
 
-    ConfigManager(const CommandLineParameters & commandLineParameters, const inicpp::config & iniconfig);
+    ConfigManager(int argc, char *argv[]);
     bool check_config();
 
     void printHeader();

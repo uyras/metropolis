@@ -7,7 +7,7 @@ git clone --recurse-submodules https://github.com/uyras/metropolis.git
 cd metropolis
 mkdir build && cd build
 cmake ..
-cmake --build .
+cmake --build . --config Release --target metropolis
 ```
 
 # How to use

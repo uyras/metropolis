@@ -16,7 +16,7 @@ void PtBalancerManual::init()
             if (parsedTemp.name == paramName){
                 sort(parsedTemp.temps.begin(),parsedTemp.temps.end());
                 if (parsedTemp.temps[0] <= base_temperatures[base_temp_num]){ // проверяем чтобы температура реплики была не ниже базовой
-                    throw(std::invalid_argument("Temperature "+std::to_string(parsedTemp.temps[0])+" of parameter "+paramName+" should not be less than its base temperature "+std::to_string(base_temperatures[base_temp_num])));
+                    throw(std::string("Temperature "+std::to_string(parsedTemp.temps[0])+" of parameter "+paramName+" should not be less than its base temperature "+std::to_string(base_temperatures[base_temp_num])));
                 }
                 replicaTemperatures.insert(replicaTemperatures.end(),parsedTemp.temps.begin(),parsedTemp.temps.end());
                 replicaTemperatureCounts[base_temp_num] += parsedTemp.temps.size();
@@ -73,7 +73,7 @@ temp_t PtBalancerManual::at(unsigned temperatureNum)
 unsigned PtBalancerManual::to(unsigned baseNum, unsigned replicaNum)
 {
     if (replicaNum >= size(baseNum)){
-        throw(std::invalid_argument("There is no replica "+std::to_string(replicaNum)+" for temperature "+std::to_string(baseNum)));
+        throw(std::string("There is no replica "+std::to_string(replicaNum)+" for temperature "+std::to_string(baseNum)));
     } else  {
         return replicaTemperaturePositions[baseNum]+replicaNum;
     }

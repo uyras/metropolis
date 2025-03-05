@@ -1,9 +1,40 @@
 #include "ConfigManager.h"
 
-ConfigManager::ConfigManager(
-    const CommandLineParameters & commandLineParameters, 
-    const inicpp::config & iniconfig)
+ConfigManager::ConfigManager(int argc, char *argv[])
 {
+    //--------------- старая функция readParameters
+    // get file name
+	bool parse_failed = false;
+
+	auto parser = argumentum::argument_parser{};
+	parser.config().program("metropolis").description("Program for calculating heat capacity \
+            and magnetisation of spin system with dipole-dipole hamiltonian v." +
+													  std::string(METROPOLIS_VERSION));
+	auto commandLineParameters = std::make_shared<CommandLineParameters>();
+	parser.params().add_parameters(commandLineParameters);
+
+	auto parseResult = parser.parse_args(argc, argv, 1);
+
+	if (!parseResult)
+	{
+		if (commandLineParameters && commandLineParameters->showExample)
+		{
+			std::cout << endl;
+			std::cout << "##########################################" << endl;
+			std::cout << "######## contents of example.ini: ########" << endl;
+			std::cout << "##########################################" << endl;
+			std::cout << endl;
+			std::cout << example_string << endl;
+		}
+		throw string("# There is nothing to calculate. Stopping.");
+	}
+
+	inicpp::config iniconfig;
+	if (!commandLineParameters->inifilename.empty())
+	{
+		iniconfig = inicpp::parser::load_file(commandLineParameters->inifilename);
+	}
+    //--------------- старая функция readParameters, конец
 
     vector<double> base_temperatures;
 
@@ -12,8 +43,12 @@ ConfigManager::ConfigManager(
     hamiltonian_t ham = hamiltonian_selector("dipolar");
 
     if (iniconfig.contains("main")){
-        //todo добавить warning о том чтоо boundaries уже не используется 
         inicpp::section sect = iniconfig["main"];
+        if (sect.contains("boundaries")){
+            cerr<<"# Warning! The option 'main/boundaries' is no longer in use. "<<endl;
+            cerr<<"#          Set non-zero value of 'main/size' instead to enable PBC long desired axis."<<endl;
+            cerr<<"#          Otherwise the OBC will be used."<<endl;
+        }
         if (sect.contains("file")) this->sysfile = sect["file"].get<inicpp::string_ini_t>();
         if (sect.contains("heatup")) this->heatup = sect["heatup"].get<inicpp::unsigned_ini_t>();
         if (sect.contains("calculate")) this->calculate = sect["calculate"].get<inicpp::unsigned_ini_t>();
@@ -36,18 +71,18 @@ ConfigManager::ConfigManager(
         if (sect.contains("savegs")) this->newGSFilename = sect["savegs"].get<inicpp::string_ini_t>();
     }
     
-    if (!commandLineParameters.sysfilename.empty())
-        this->sysfile = commandLineParameters.sysfilename;
-    if (commandLineParameters.hSteps != -1)
-        this->heatup = commandLineParameters.hSteps;
-    if (commandLineParameters.cSteps != -1)
-        this->calculate = commandLineParameters.cSteps;
-    if (!isnan(commandLineParameters.iRange))
-        range = commandLineParameters.iRange;
-    if (commandLineParameters.rseed!=-1)
-        this->seed = commandLineParameters.rseed;
-    if (commandLineParameters.temperatures.size()>0)
-        base_temperatures = commandLineParameters.temperatures;
+    if (!commandLineParameters->sysfilename.empty())
+        this->sysfile = commandLineParameters->sysfilename;
+    if (commandLineParameters->hSteps != -1)
+        this->heatup = commandLineParameters->hSteps;
+    if (commandLineParameters->cSteps != -1)
+        this->calculate = commandLineParameters->cSteps;
+    if (!isnan(commandLineParameters->iRange))
+        range = commandLineParameters->iRange;
+    if (commandLineParameters->rseed!=-1)
+        this->seed = commandLineParameters->rseed;
+    if (commandLineParameters->temperatures.size()>0)
+        base_temperatures = commandLineParameters->temperatures;
 
     if (iniconfig.contains("parallel_tempering")){
         this->temperatures = PtParseConfig(iniconfig);
@@ -59,7 +94,7 @@ ConfigManager::ConfigManager(
 
     this->system = make_shared<MagneticSystem>(this->sysfile,range,size,ham);
     
-    this->saveStates = commandLineParameters.saveStates;
+    this->saveStates = commandLineParameters->saveStates;
     this->saveStateFileBasename = this->sysfile.substr(0, this->sysfile.find_last_of("."));
 /*
     for (auto & sect: iniconfig){
@@ -79,7 +114,7 @@ ConfigManager::ConfigManager(
 
         if (parameterName == "correlation") {
             if (!sect.contains("method"))
-                throw(std::invalid_argument("Parameter " + parameterString + " should have method field."));
+                throw(std::string("Parameter " + parameterString + " should have method field."));
             const auto opt = sect["method"];
 
             std::vector<uint64_t> spins;
@@ -182,7 +217,7 @@ ConfigManager::ConfigManager(
             this->parameters.push_back(std::move(core));
 
         } else {
-            throw(std::invalid_argument("Parameter " + parameterName + " is unknown"));
+            throw(std::string("Parameter " + parameterName + " is unknown"));
         }
     }
 */
@@ -195,6 +230,11 @@ ConfigManager::ConfigManager(
             threadCount = omp_get_num_threads();
         }
     }
+
+    if (!this->check_config()){
+        throw string("Configuration error");
+    }
+
     return;
 }
 

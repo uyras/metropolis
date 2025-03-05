@@ -21,54 +21,6 @@
 #include "Worker.h"
 #include "MagneticSystem.h"
 
-ConfigManager* readParameters(int argc, char *argv[]){
-
-	// get file name
-	bool parse_failed = false;
-
-	auto parser = argumentum::argument_parser{};
-	parser.config().program("metropolis").description("Program for calculating heat capacity \
-            and magnetisation of spin system with dipole-dipole hamiltonian v." +
-													  std::string(METROPOLIS_VERSION));
-	auto commandLineParameters = std::make_shared<CommandLineParameters>();
-	parser.params().add_parameters(commandLineParameters);
-
-	auto parseResult = parser.parse_args(argc, argv, 1);
-
-	if (!parseResult)
-	{
-		if (commandLineParameters && commandLineParameters->showExample)
-		{
-			std::cout << endl;
-			std::cout << "##########################################" << endl;
-			std::cout << "######## contents of example.ini: ########" << endl;
-			std::cout << "##########################################" << endl;
-			std::cout << endl;
-			std::cout << example_string << endl;
-		}
-		return nullptr;
-	}
-
-	inicpp::config iniconfig;
-	if (!commandLineParameters->inifilename.empty())
-	{
-		iniconfig = inicpp::parser::load_file(commandLineParameters->inifilename);
-	}
-
-	ConfigManager *config = new ConfigManager(*(commandLineParameters.get()), iniconfig);
-
-	bool configError = config->check_config();
-	if (!configError)
-	{
-		cerr << "Program stopped with error" << endl;
-		return nullptr;
-	} else {
-		config->printHeader();
-	}
-
-	return config;
-}
-
 monteCarloStatistics montecarlo(ConfigManager *config){
 	unsigned temperatureCount = config->temperatures->size();
 
@@ -176,10 +128,15 @@ int main(int argc, char *argv[])
 {
 	auto time_start = std::chrono::steady_clock::now();
 
-	ConfigManager *config = readParameters(argc,argv);
-	if (!config){
+	ConfigManager *config;
+	try {
+		config = new ConfigManager(argc,argv);
+	} catch (const std::string& s){
+		cerr<<s<<endl;
 		return 0;
 	}
+
+	config->printHeader();
 
 	bool programRestarted = false;
 	monteCarloStatistics statData;
@@ -221,6 +178,8 @@ int main(int argc, char *argv[])
 			printf("# system with found lowest energy is saved to file %s\n",config->getNewGSFilename().c_str());
 		}
 	}
+
+	delete config;
 
 	return 0;
 }

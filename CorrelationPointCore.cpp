@@ -115,7 +115,7 @@ bool CorrelationPointCore::init(PartArray * sys)
             }
         }
         if (spinsInCurrentPoint==0){
-            throw(std::invalid_argument("# Corellation point "+std::to_string(i)+" has no spins around. Check your config."));
+            throw(std::string("# Corellation point "+std::to_string(i)+" has no spins around. Check your config."));
         }
         spinsInPoint += spinsInCurrentPoint;
         if (spinsInCurrentPoint > maxSpinsInPoint)

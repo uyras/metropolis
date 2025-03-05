@@ -73,7 +73,7 @@ Vect strToVect(std::string val){
                         target = {x,y,0};
                     }
                 } else {
-                    throw(std::invalid_argument("Vector format is x|y or x|y|z"));
+                    throw(std::string("Vector format is x|y or x|y|z"));
                 }
             }
         }

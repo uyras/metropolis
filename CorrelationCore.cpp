@@ -167,7 +167,7 @@ char CorrelationCore::method(const Part* partA, const Part* partB) const
     if (this->_methodVar==1) return feSign(partA,partB);
     if (this->_methodVar==2) return fScalar(partA,partB);
 
-    throw(invalid_argument("Invalid _methodVar values found in CorrelationCore::method"));
+    throw(string("Invalid _methodVar values found in CorrelationCore::method"));
     return 0;
 }
 

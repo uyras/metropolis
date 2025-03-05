@@ -26,7 +26,7 @@ public:
     */
     double at(unsigned baseNum, unsigned replicaNum) {
         if (replicaNum !=0)
-            throw(std::invalid_argument("There is no replica "+std::to_string(replicaNum)+" for temperature "+std::to_string(baseNum)));
+            throw(std::string("There is no replica "+std::to_string(replicaNum)+" for temperature "+std::to_string(baseNum)));
         else return this->base_temperatures.at(baseNum);
     };
 

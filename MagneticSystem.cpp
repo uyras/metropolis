@@ -376,10 +376,10 @@ int MagneticSystem::fileVersion(std::string file)
             }
             f.close();
         } else {
-            std::invalid_argument("file "+file+" not found"); //todo сделать нормальные классы для исключений
+            std::string("file "+file+" not found"); //todo сделать нормальные классы для исключений
         }
     } else {
-        throw(std::invalid_argument("Workg input file extention. Only mfsys and csv files are supported!"));
+        throw(std::string("Workg input file extention. Only mfsys and csv files are supported!"));
     }
     return 0;
 }
