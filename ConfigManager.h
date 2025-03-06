@@ -51,6 +51,7 @@ public:
     bool check_config();
 
     void printHeader();
+    void printColumnNames();
     void getParameters(std::vector< std::unique_ptr< CalculationParameter > > &);
 
     int getSeed() const { return this->seed; }
@@ -66,7 +67,7 @@ public:
     std::string getSaveStateFileName(int temperature, int step) const { 
         return this->saveStateFileBasename+"_"+std::to_string(temperature)+"_"+std::to_string(step)+".mfsys"; 
     }
-    bool pt_enabled(){ return this->temperatures->get_each_step(); } // включен ли параллельный отжиг (отключен когда each_step==0)
+    bool pt_enabled() const { return this->temperatures->get_each_step(); } // включен ли параллельный отжиг (отключен когда each_step==0)
     
 };
 

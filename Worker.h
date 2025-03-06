@@ -18,9 +18,9 @@ class Worker {
 private:
     unsigned _num; //номер воркера
     unsigned stepsMadeDummy; // сколько шагов сделано с calculateStatistics=False
-    unsigned stepsAcceptedDummy; // сколько успешных переворотов для прогревных шагов
+    double stepsAcceptedDummy; // сколько успешных переворотов для прогревных шагов, считается в МК-шагах поэтому double
     unsigned stepsMadeCalculate; // сколько шагов сделано с calculateStatistics=True
-    unsigned stepsAcceptedCalculate; // сколько успешных переворотов для боевых шагов
+    double stepsAcceptedCalculate; // сколько успешных переворотов для боевых шагов, считается в МК-шагах поэтому double
     int _seed;
     const ConfigManager* config;
     state_t state;
@@ -59,6 +59,9 @@ public:
     double eActual; // энергия текущей конфигурации системы. Обновляется итеративно при каждом перевороте. иногда полностью пересчитывается
     chrono::milliseconds duration;
     vector<std::unique_ptr<CalculationParameter>> calculationParameters;
+    
+    unsigned ptSuccessExchangesDummy; // количество успешных обменов с температурой ниже при прогреве
+    unsigned ptSuccessExchangesCalculate; // количество успешных обменов с температурой ниже при основных шагах
 
 
     static bool exchange(shared_ptr<Worker> w1, shared_ptr<Worker> w2, double dBeta);

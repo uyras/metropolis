@@ -51,6 +51,8 @@ monteCarloStatistics montecarlo(ConfigManager *config){
 	//новый кусок кода
 	for (unsigned phase = 0; phase <= 1; ++phase)
 	{
+		if (phase==0) printf("###########    start of heatup    #############\n");
+			else printf("###########  start of main loop   #############\n");
 		unsigned calculateSteps;
 		if (phase == 0)
 			calculateSteps = config->getHeatup();
@@ -91,10 +93,19 @@ monteCarloStatistics montecarlo(ConfigManager *config){
 					for (int r=0; r<config->temperatures->size(tt)-1;++r){
 						double dBeta = (1/config->temperatures->at(tt,r+1)) - (1/config->temperatures->at(tt,r));
 						bool rr = Worker::exchange(workers[config->temperatures->to(tt,r)],workers[config->temperatures->to(tt,r+1)], dBeta);
+						if (rr){
+							if (phase==0){
+								workers[config->temperatures->to(tt,r+1)]->ptSuccessExchangesDummy++;
+							} else {
+								workers[config->temperatures->to(tt,r+1)]->ptSuccessExchangesCalculate++;
+							}
+						}
 						//printf("## ----- p=%u, s=%u, n=%d;r=%d;T=%g, exch=%d\n",phase,step,tt,r,config->temperatures->at(tt,r),rr);
 					}
 				}
 			}
+
+			if (phase==0) config->temperatures->rebalance(workers);
 		}
 
 		
@@ -104,6 +115,8 @@ monteCarloStatistics montecarlo(ConfigManager *config){
 	}
 
 	if (!statData.foundLowerEnergy) {
+		config->printColumnNames();
+		
 		for (int tt = 0; tt < config->temperatures->size(); ++tt)
 		{
 			workers[tt]->printout(config->temperatures->at(tt));
@@ -111,13 +124,14 @@ monteCarloStatistics montecarlo(ConfigManager *config){
 		}
 
 		// print out the states and times of running
-		printf("###########  end of calculations #############\n");
+		printf("###########  end of calculations  #############\n");
 		printf("#\n");
-		printf("###########     final notes:     #############\n");
+		printf("###########     final notes:      #############\n");
 		for (int tt = 0; tt < config->temperatures->size(); ++tt)
 		{
 			workers[tt]->printout_service();
 		}
+		printf("###########  end of final notes   #############\n");
 		printf("#\n");
 	}
 	

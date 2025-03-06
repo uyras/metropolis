@@ -296,16 +296,28 @@ void ConfigManager::printHeader()
         co->printHeader(i); ++i;
     }
 
+    
+}
+
+void ConfigManager::printColumnNames()
+{
+    // print header
     printf("# legend (column names):\n");
     printf("# 1:T 2:C(T)/N 3:<E> 4:<E^2> 5:threadId 6:seed");
-    i=7;
+    unsigned i=7;
     for (auto & co : parameters){
         printf(" %d:<%s> %d:<%s^2>",i,co->parameterId().c_str(),i+1,co->parameterId().c_str());
         i+=2;
     }
+    printf(" %d:acc_rate_heatup %d:acc_rate_calculate",i,i+1); i+=2; // внутри printf i++ работает некорректно
+    if (this->pt_enabled()){
+        printf(" %d:pt_acc_rate_heatup %d:pt_acc_rate_calculate",i,i+1); i+=2;
+    }
+    printf(" %d:id(T) %d:id(replica)",i,i+1); i+=2;
     printf(" %d:time,s",i);
     printf("\n");
     fflush(stdout);
+    // end print header
 }
 
 void ConfigManager::getParameters(std::vector< std::unique_ptr< CalculationParameter > > & calculationParameters)

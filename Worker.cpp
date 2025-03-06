@@ -32,6 +32,8 @@ Worker::Worker(unsigned num, int seed, const ConfigManager* _config) :
     stepsAcceptedDummy(0),
     stepsMadeCalculate(0),
     stepsAcceptedCalculate(0),
+    ptSuccessExchangesDummy(0),
+    ptSuccessExchangesCalculate(0),
     _seed(seed),
     config(_config),
     _previousCalculateStatistics(false),
@@ -87,10 +89,12 @@ optional< pair<double,state_t> > Worker::work(unsigned steps, bool calculateStat
     double dE, p, randNum;
 
     bool acceptSweep;
+    unsigned acceptedCount;
     const unsigned stepsMade = (calculateStatistics) ? this->stepsMadeCalculate : this->stepsMadeDummy;
 
     for (unsigned step = 0; step < steps; ++step)
     {
+        acceptedCount = 0;
         if ((stepsMade + step) == 0 || (stepsMade + step) % FULL_REFRESH_EVERY == 0)
         {
             eActual = this->fullRefreshEnergy();
@@ -136,7 +140,7 @@ optional< pair<double,state_t> > Worker::work(unsigned steps, bool calculateStat
 
             if (acceptSweep)
             {
-                if (calculateStatistics) this->stepsAcceptedCalculate++; else this->stepsAcceptedDummy++;
+                acceptedCount++;
                 state[swapNum] *= -1;
                 eActual += dE;
 
@@ -180,6 +184,8 @@ optional< pair<double,state_t> > Worker::work(unsigned steps, bool calculateStat
                 sys.save( config->getSaveStateFileName(_num,step), state );
             }
         }
+
+        if (calculateStatistics) this->stepsAcceptedCalculate += double(acceptedCount) / config->N(); else this->stepsAcceptedDummy += double(acceptedCount) / config->N();
     }
 
     if (calculateStatistics) this->stepsMadeCalculate += steps; else this->stepsMadeDummy += steps;
@@ -191,29 +197,47 @@ optional< pair<double,state_t> > Worker::work(unsigned steps, bool calculateStat
 
 void Worker::printout(temp_t temperature)
 {
+
+    //print lines
     mpf_class ee = e / config->getCalculate();
     mpf_class ee2 = e2 / config->getCalculate();
 
     mpf_class cT = (ee2 - (ee * ee)) / (temperature.t * temperature.t * config->N());
 
+    gmp_printf("%e %.30Fe %.30Fe %.30Fe %d %d",
+            temperature.t, cT.get_mpf_t(), ee.get_mpf_t(), ee2.get_mpf_t(),
+            omp_get_thread_num(), _seed);
+
+    for (auto &cp : calculationParameters)
     {
-        gmp_printf("%e %.30Fe %.30Fe %.30Fe %d %d",
-                temperature.t, cT.get_mpf_t(), ee.get_mpf_t(), ee2.get_mpf_t(),
-                omp_get_thread_num(), _seed);
-        for (auto &cp : calculationParameters)
-        {
-            gmp_printf(" %.30Fe %.30Fe",
-                    cp->getTotal(config->getCalculate()).get_mpf_t(),
-                    cp->getTotal2(config->getCalculate()).get_mpf_t());
-        }
-        auto rtime = duration.count();
-        printf(" %f", rtime / 1000.);
-        printf("\n");
-        fflush(stdout);
-        for (auto &cp : calculationParameters)
-        {
-            cp->save(_num);
-        }
+        gmp_printf(" %.30Fe %.30Fe",
+                cp->getTotal(config->getCalculate()).get_mpf_t(),
+                cp->getTotal2(config->getCalculate()).get_mpf_t());
+    }
+
+    printf(" %f %f",
+        this->stepsAcceptedDummy/this->stepsMadeDummy, 
+        this->stepsAcceptedCalculate/this->stepsMadeCalculate
+    );
+
+    if (config->pt_enabled()){
+        double exchange_count_d = ceil(config->getHeatup()/config->temperatures->get_each_step());
+        double exchange_count_c = ceil(config->getCalculate()/config->temperatures->get_each_step());
+        printf(" %f %f",
+            this->ptSuccessExchangesDummy/exchange_count_d, 
+            this->ptSuccessExchangesCalculate/exchange_count_c
+        );
+    }
+
+    printf(" %u %u",temperature.num_base,temperature.num_replica);
+
+    auto rtime = duration.count();
+    printf(" %f", rtime / 1000.);
+    printf("\n");
+    fflush(stdout);
+    for (auto &cp : calculationParameters)
+    {
+        cp->save(_num);
     }
 }
 

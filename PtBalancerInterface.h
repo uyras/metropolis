@@ -5,6 +5,9 @@
 #include <vector>
 #include "misc.h"
 
+class Worker; // хэдер с ним нельзя подключать из-за циклической зависимости 
+// PtBalancerInterface->Worker->ConfigManager->PtBalancerDefault->PtBalancerInterface
+
 class PtBalancerInterface
 {
 private:
@@ -19,7 +22,7 @@ public:
     virtual ~PtBalancerInterface() {};
     void setBaseTemperatures(std::vector<double> base_temperatures){ this->base_temperatures = base_temperatures;};
 
-    unsigned get_each_step(){ return each_step; }
+    unsigned get_each_step() const { return each_step; }
     auto cbeginBase() const { return base_temperatures.cbegin(); }
     auto cendBase() const { return base_temperatures.cend(); }
 
@@ -29,7 +32,15 @@ public:
      */
     virtual void init() {};
     virtual void parseConfig(inicpp::section configSection) = 0;
-    virtual void rebalance() {};
+
+    /**
+     * @brief Функция запускается сразу после обмена конфигурациями, только во время прогрева системы. 
+     * В ней можно произвести ребалансировку температуры. Статистику по всем вычисляемым параметрам можно получить из
+     * аргумента workers
+     * 
+     * @param workers массив объектов магнитной системы. Размер массива равен общему числу температур (параметр size)
+     */
+    virtual void rebalance(const vector <shared_ptr<Worker>> & workers) {};
     virtual unsigned size() = 0; //общее число температур
     virtual unsigned sizeBase() = 0; //число базовых температур
     virtual unsigned size(unsigned baseNum) = 0; //число реплик для базовой температуры baseNum
