@@ -53,6 +53,7 @@ monteCarloStatistics montecarlo(ConfigManager *config){
 	{
 		if (phase==0) printf("###########    start of heatup    #############\n");
 			else printf("###########  start of main loop   #############\n");
+		fflush(stdout);
 		unsigned calculateSteps;
 		if (phase == 0)
 			calculateSteps = config->getHeatup();
@@ -126,13 +127,6 @@ monteCarloStatistics montecarlo(ConfigManager *config){
 		// print out the states and times of running
 		printf("###########  end of calculations  #############\n");
 		printf("#\n");
-		printf("###########     final notes:      #############\n");
-		for (int tt = 0; tt < config->temperatures->size(); ++tt)
-		{
-			workers[tt]->printout_service();
-		}
-		printf("###########  end of final notes   #############\n");
-		printf("#\n");
 	}
 	
 
@@ -164,6 +158,7 @@ int main(int argc, char *argv[])
 			   statData.initEnergy,
 			   config->temperatures->at(statData.temperatureOfLowerEnergy).to_string().c_str(),
 			   stateToString(statData.lowerEnergyState).c_str());
+			fflush(stdout);
 			programRestarted = true;
 			finalState = xorstate(finalState,statData.lowerEnergyState);
 			config->system->applyState(finalState);

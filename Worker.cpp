@@ -229,26 +229,19 @@ void Worker::printout(temp_t temperature)
         );
     }
 
-    printf(" %u %u",temperature.num_base,temperature.num_replica);
-
-    auto rtime = duration.count();
-    printf(" %f", rtime / 1000.);
+    printf(" %u %u %f %e %s",
+        temperature.num_base,
+        temperature.num_replica,
+        duration.count() / 1000.,
+        this->fullRefreshEnergy(),
+        stateToString(state).c_str()
+    );
     printf("\n");
     fflush(stdout);
     for (auto &cp : calculationParameters)
     {
         cp->save(_num);
     }
-}
-
-void Worker::printout_service()
-{
-    printf("#%d, time=%fs, %s, E=%e, final state: %s\n",
-        _num,
-        duration.count() / 1000.,
-        config->temperatures->at(_num).to_string().c_str(),
-        this->fullRefreshEnergy(),
-        stateToString(state).c_str());
 }
 
 bool Worker::exchange(shared_ptr<Worker> w1, shared_ptr<Worker> w2, double dBeta)

@@ -52,14 +52,12 @@ public:
 
     void printout(temp_t temperature);
 
-    void printout_service();
-
     mpf_class e;
     mpf_class e2;
     double eActual; // энергия текущей конфигурации системы. Обновляется итеративно при каждом перевороте. иногда полностью пересчитывается
     chrono::milliseconds duration;
     vector<std::unique_ptr<CalculationParameter>> calculationParameters;
-    
+
     unsigned ptSuccessExchangesDummy; // количество успешных обменов с температурой ниже при прогреве
     unsigned ptSuccessExchangesCalculate; // количество успешных обменов с температурой ниже при основных шагах
 
