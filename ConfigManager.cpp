@@ -280,7 +280,7 @@ void ConfigManager::printHeader()
         printf("#   restart: disabled\n");
     printf("#   threads: %d\n",threadCount);
     printf("#     rseed: %d+<temperature number>\n",this->seed);
-    printf("#    temps.: %u pcs. from %e to %e\n",
+    printf("#    temps.: %lu pcs. from %e to %e\n",
         temperatures->sizeBase(),
         std::min_element(temperatures->cbeginBase(),temperatures->cendBase()).operator*(),
         std::max_element(temperatures->cbeginBase(),temperatures->cendBase()).operator*());
@@ -288,6 +288,14 @@ void ConfigManager::printHeader()
     for (int tt=1; tt<temperatures->sizeBase(); ++tt)
         printf(",%e",temperatures->at(tt,0));
     printf("\n");
+
+    if (this->pt_enabled()){
+        printf("# par.temp.: enabled, balancer: %s, each_step: %u\n",this->temperatures->name().c_str(),this->temperatures->get_each_step());
+        this->temperatures->printHeader();
+    } else {
+        printf("# par.temp.: disabled\n");
+    }
+
     printf("#   params.: %zd\n",this->parameters.size());
     printf("#\n");
 

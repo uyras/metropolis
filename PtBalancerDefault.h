@@ -15,26 +15,28 @@ public:
     };
     ~PtBalancerDefault(){};
 
+    string name(){ return "default"; }
+
     void parseConfig(inicpp::section configSection) {};
-    unsigned size() { return this->base_temperatures.size(); }; //общее число температур
-    unsigned sizeBase() { return this->size(); }; //число базовых температур
-    unsigned size(unsigned baseNum) { return 1; }; //число реплик для базовой температуры baseNum
+    size_t size() { return this->base_temperatures.size(); }; //общее число температур
+    size_t sizeBase() { return this->size(); }; //число базовых температур
+    size_t size(size_t baseNum) { return 1; }; //число реплик для базовой температуры baseNum
     
     /** получить температуру для базового номера baseNum и реплики replicaNum. 
      * В каждой реплике базовая температура считается нулевой.
      * Если replicaNum будет больше чем size(unsigned baseNum), то выдает ошибку
     */
-    double at(unsigned baseNum, unsigned replicaNum) {
+    double at(size_t baseNum, size_t replicaNum) {
         if (replicaNum !=0)
             throw(std::string("There is no replica "+std::to_string(replicaNum)+" for temperature "+std::to_string(baseNum)));
         else return this->base_temperatures.at(baseNum);
     };
 
-    temp_t at(unsigned temperatureNum) {
+    temp_t at(size_t temperatureNum) {
         return {temperatureNum,0,this->base_temperatures.at(temperatureNum)};
     };
 
-    unsigned to(unsigned baseNum, unsigned replicaNum){ return baseNum; }
+    size_t to(size_t baseNum, size_t replicaNum){ return baseNum; }
 };
 
 

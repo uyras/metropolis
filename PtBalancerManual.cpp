@@ -25,7 +25,6 @@ void PtBalancerManual::init()
         if (base_temp_num>0){
             replicaTemperaturePositions[base_temp_num] = replicaTemperaturePositions[base_temp_num-1]+replicaTemperatureCounts[base_temp_num-1];
         }
-        //if (_configSection.contains(paramName)) // TODO Добавить в этот список ещё и базовую температуру
     }
 }
 
@@ -41,27 +40,45 @@ void PtBalancerManual::rebalance()
 {
 }
 
-unsigned PtBalancerManual::size()
+void PtBalancerManual::printHeader()
+{
+    printf("# PT replica temperature list:\n");
+    for (size_t r=0; r<this->sizeBase(); r++){
+        printf("# rep. %4lu: ",r);
+        size_t from = replicaTemperaturePositions[r];
+        size_t cnt = replicaTemperatureCounts[r];
+        size_t to = from + cnt;
+        printf("%e", replicaTemperatures[from]);
+        for (size_t bt=from+1; bt<to; bt++){
+            printf(", %e", replicaTemperatures[bt]);
+        }
+        printf(" (%lu pcs. from %e to %e)\n", cnt,
+        std::min_element(replicaTemperatures.cbegin()+from,replicaTemperatures.cbegin()+to).operator*(),
+        std::max_element(replicaTemperatures.cbegin()+from,replicaTemperatures.cbegin()+to).operator*());
+    }
+}
+
+size_t PtBalancerManual::size()
 {
     return this->replicaTemperatures.size();
 }
 
-unsigned PtBalancerManual::sizeBase()
+size_t PtBalancerManual::sizeBase()
 {
     return base_temperatures.size();
 }
 
-unsigned PtBalancerManual::size(unsigned baseNum)
+size_t PtBalancerManual::size(size_t baseNum)
 {
     return replicaTemperatureCounts[baseNum];
 }
 
-double PtBalancerManual::at(unsigned baseNum, unsigned replicaNum)
+double PtBalancerManual::at(size_t baseNum, size_t replicaNum)
 {
     return this->replicaTemperatures.at(this->to(baseNum, replicaNum));
 }
 
-temp_t PtBalancerManual::at(unsigned temperatureNum)
+temp_t PtBalancerManual::at(size_t temperatureNum)
 {
     unsigned i;
     for (i=1; i<replicaTemperaturePositions.size(); i++){
@@ -70,7 +87,7 @@ temp_t PtBalancerManual::at(unsigned temperatureNum)
     return {i-1,temperatureNum-replicaTemperaturePositions[i-1],this->replicaTemperatures.at(temperatureNum)};
 }
 
-unsigned PtBalancerManual::to(unsigned baseNum, unsigned replicaNum)
+size_t PtBalancerManual::to(size_t baseNum, size_t replicaNum)
 {
     if (replicaNum >= size(baseNum)){
         throw(std::string("There is no replica "+std::to_string(replicaNum)+" for temperature "+std::to_string(baseNum)));

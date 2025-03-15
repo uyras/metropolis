@@ -35,17 +35,18 @@ struct monteCarloStatistics {
 /**
  * @brief Структура для описания температуры при МК-вычислениях
  * 
- * num_base - порядковый номер базовой температуры
- * num_replica - порядковый номер реплики
+ * unsigned num_base - порядковый номер базовой температуры
+ * unsigned num_replica - порядковый номер реплики
+ * double t - значение температуры
  */
 struct temp_t {
-    unsigned num_base;
-    unsigned num_replica;
+    size_t num_base;
+    size_t num_replica;
     double t;
     
     std::string to_string() const {
         std::string text(30, '\0');
-        std::snprintf(text.data(),30,"T%u.%u=%e",num_base,num_replica,t);
+        std::snprintf(text.data(),30,"T%lu.%lu=%e",num_base,num_replica,t);
         return text;
     }
 };

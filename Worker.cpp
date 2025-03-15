@@ -242,7 +242,7 @@ void Worker::printout(temp_t temperature)
         );
     }
 
-    printf(" %u %u %f %e",
+    printf(" %lu %lu %f %e",
         temperature.num_base,
         temperature.num_replica,
         duration.count() / 1000.,

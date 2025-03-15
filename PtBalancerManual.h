@@ -12,8 +12,8 @@ class PtBalancerManual : public PtBalancerInterface
 {
 private:
     vector<double> replicaTemperatures;
-    vector<unsigned> replicaTemperatureCounts;
-    vector<unsigned> replicaTemperaturePositions; //кумулятивная сумма от replicaTemperatureCounts
+    vector<size_t> replicaTemperatureCounts;
+    vector<size_t> replicaTemperaturePositions; //кумулятивная сумма от replicaTemperatureCounts
 
     struct parserParameterItem {
         bool checked;
@@ -26,21 +26,24 @@ public:
     PtBalancerManual(unsigned each_step):PtBalancerInterface(each_step){};
     ~PtBalancerManual(){};
 
+    string name(){ return "manual"; }
+
     void init();
     void parseConfig(inicpp::section configSection);
     void rebalance();
-    unsigned size(); //общее число температур
-    unsigned sizeBase(); //число базовых температур
-    unsigned size(unsigned baseNum); //число реплик для базовой температуры baseNum
+    void printHeader();
+    size_t size(); //общее число температур
+    size_t sizeBase(); //число базовых температур
+    size_t size(size_t baseNum); //число реплик для базовой температуры baseNum
     
     /** получить температуру для базового номера baseNum и реплики replicaNum. 
      * В каждой реплике базовая температура считается нулевой.
-     * Если replicaNum будет больше чем size(unsigned baseNum), то выдает ошибку
+     * Если replicaNum будет больше чем size(size_t baseNum), то выдает ошибку
     */
-    double at(unsigned baseNum, unsigned replicaNum);
-    temp_t at(unsigned temperatureNum);
+    double at(size_t baseNum, size_t replicaNum);
+    temp_t at(size_t temperatureNum);
 
-    unsigned to(unsigned baseNum, unsigned replicaNum);
+    size_t to(size_t baseNum, size_t replicaNum);
 };
 
 
