@@ -90,8 +90,9 @@ monteCarloStatistics montecarlo(ConfigManager *config){
 
 			for (int tt = 0; tt < config->temperatures->sizeBase(); ++tt)
 			{
+				//cerr<<"# replica exchange for tt="<<tt<<endl;
 				if (config->temperatures->size(tt)>1){
-					for (int r=0; r<config->temperatures->size(tt)-1;++r){
+					for (int r=config->temperatures->size(tt)-2; r>=0; --r){
 						double dBeta = (1/config->temperatures->at(tt,r+1)) - (1/config->temperatures->at(tt,r));
 						bool rr = Worker::exchange(workers[config->temperatures->to(tt,r)],workers[config->temperatures->to(tt,r+1)], dBeta);
 						if (rr){

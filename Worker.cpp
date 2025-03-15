@@ -84,7 +84,7 @@ optional< pair<double,state_t> > Worker::work(unsigned steps, bool calculateStat
     unsigned swapNum;
     size_t neighbours_from; //порядковый номер в массиве соседей, начало
     size_t neighbours_to; //порядковый номер в массиве соседей, конец
-    const Vect field = config->getField();
+    const Vect &field = config->getField();
 
     double dE, p, randNum;
 
@@ -92,7 +92,12 @@ optional< pair<double,state_t> > Worker::work(unsigned steps, bool calculateStat
     unsigned acceptedCount;
     const unsigned stepsMade = (calculateStatistics) ? this->stepsMadeCalculate : this->stepsMadeDummy;
 
-    for (unsigned step = 0; step < steps; ++step)
+    /**
+     * Счетчик, сколько шагов нужно сделать в начале
+     */
+    unsigned ptTrialStepsMade = (config->pt_enabled()) ? 1 : 0;
+
+    for (int step = 0; step < steps; ++step)
     {
         acceptedCount = 0;
         if ((stepsMade + step) == 0 || (stepsMade + step) % FULL_REFRESH_EVERY == 0)
@@ -170,22 +175,30 @@ optional< pair<double,state_t> > Worker::work(unsigned steps, bool calculateStat
             }
         }
 
-        // update thermodynamic averages (porosyenok ;)
-        if (calculateStatistics)
-        {
-            e += eActual;
-            e2 += eActual * eActual;
-            for (auto &cp : calculationParameters)
+        // если нужно сделать прогревной шаг И это первый МК-шаг в текущей функции И это НЕ первый запуск функции worker
+        if (ptTrialStepsMade && !step && (this->stepsMadeCalculate+this->stepsMadeDummy)) {
+            step--; //делаем число шагов -1, чтобы он обнулился в следующем цикле
+            ptTrialStepsMade--;
+            //cerr<<"# make one trial step worker="<<this->_num<<endl;
+        } else {
+            // update thermodynamic averages (porosyenok ;)
+            if (calculateStatistics)
             {
-                cp->incrementTotal();
+                e += eActual;
+                e2 += eActual * eActual;
+                for (auto &cp : calculationParameters)
+                {
+                    cp->incrementTotal();
+                }
+
+                if (config->getSaveStates()>0 && (stepsMade+step) % config->getSaveStates() == 0){
+                    sys.save( config->getSaveStateFileName(_num,step), state );
+                }
             }
 
-            if (config->getSaveStates()>0 && (stepsMade+step) % config->getSaveStates() == 0){
-                sys.save( config->getSaveStateFileName(_num,step), state );
-            }
+            if (calculateStatistics) this->stepsAcceptedCalculate += double(acceptedCount) / config->N(); 
+            else this->stepsAcceptedDummy += double(acceptedCount) / config->N();
         }
-
-        if (calculateStatistics) this->stepsAcceptedCalculate += double(acceptedCount) / config->N(); else this->stepsAcceptedDummy += double(acceptedCount) / config->N();
     }
 
     if (calculateStatistics) this->stepsMadeCalculate += steps; else this->stepsMadeDummy += steps;
@@ -248,7 +261,7 @@ bool Worker::exchange(shared_ptr<Worker> w1, shared_ptr<Worker> w2, double dBeta
 {
     uniform_real_distribution<double> doubleDistr(0, 1);	   // right edge is not included
     double dE = w2->eActual - w1->eActual;
-    double p = exp(dE/dBeta);
+    double p = exp(dE*dBeta);
     double randNum = doubleDistr(w1->generator);
     if (randNum <= p)
     {
