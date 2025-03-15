@@ -55,7 +55,7 @@ public:
     void getParameters(std::vector< std::unique_ptr< CalculationParameter > > &);
 
     int getSeed() const { return this->seed; }
-    size_t N() const { return this->system->size(); }
+    inline size_t N() const { return this->system->N(); }
     unsigned getHeatup() const { return this->heatup; }
     unsigned getCalculate() const { return this->calculate; }
     std::string getSysfile() const { return this->sysfile; }

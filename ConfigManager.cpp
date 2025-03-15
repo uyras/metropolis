@@ -252,7 +252,7 @@ bool ConfigManager::check_config()
 
     //check parameters of the core
     for (auto & co : parameters){
-        if (!co->check(this->system->size())) return false;
+        if (!co->check(this->system->N())) return false;
     }
 
     return true;

@@ -13,7 +13,7 @@ void Worker::_stopTimer()
 double Worker::fullRefreshEnergy()
 {   
     double eOld = 0;
-    for (size_t i=0; i<config->system->size(); i++){
+    for (size_t i=0; i<config->N(); i++){
         size_t nf = config->system->neighbours_from[i];
         size_t nc = config->system->neighbours_count[i];
         for (size_t k = nf; k < nf + nc; k++){

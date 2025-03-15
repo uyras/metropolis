@@ -22,7 +22,7 @@ MagneticSystem::~MagneticSystem()
 
 void MagneticSystem::printHeader(Vect field)
 {
-    double avgNeighb = std::accumulate(this->neighbours_count.begin(), this->neighbours_count.end(), 0.0 ) / this->size();
+    double avgNeighb = std::accumulate(this->neighbours_count.begin(), this->neighbours_count.end(), 0.0 ) / this->N();
 
     double e = this->E();
     for (auto p : this->parts)
@@ -30,7 +30,7 @@ void MagneticSystem::printHeader(Vect field)
         e -= scalar(p.m, field);
     }
 
-    printf("#    system: %lu spins, ", this->size());
+    printf("#    system: %lu spins, ", this->N());
     if (_fileVersion!=0) printf("%f interaction range, ", this->getRange());
     printf("%f avg. neighbours\n", avgNeighb);
     printf("#   physics: energy: %g, ext.filed: (%g,%g,%g), ",e,field.x,field.y,field.z);
@@ -277,7 +277,7 @@ void MagneticSystem::buildEnergyTable()
 void MagneticSystem::save(string filename, state_t state) const
 {
     if (state.size()==0){
-        state.resize(this->size());
+        state.resize(this->N());
     }
 
     ofstream f;
@@ -289,14 +289,14 @@ void MagneticSystem::save(string filename, state_t state) const
     f<<"version=2"<<endl;
     f<<"dimensions=3"<<endl;
     f<<"type=standart"<<endl;
-    f<<"size="+std::to_string(this->size())<<endl;
-    f<<"state="+string(this->size(),'0')<<endl;
+    f<<"size="+std::to_string(this->N())<<endl;
+    f<<"state="+string(this->N(),'0')<<endl;
     f<<"interactionrange="+std::to_string(this->_range)<<endl;
     f<<"sizescale=1"<<endl;
     f<<"magnetizationscale=1"<<endl;
     f<<"[parts]"<<endl;
 
-    for (size_t i=0; i<this->size(); i++) {
+    for (size_t i=0; i<this->N(); i++) {
         f << i << "\t";
         f << parts[i].p.x << "\t";
         f << parts[i].p.y << "\t";

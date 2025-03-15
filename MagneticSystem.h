@@ -42,7 +42,7 @@ public:
 
     void printHeader(Vect field);
 
-    size_t size() const { return _state.size(); }
+    size_t N() const { return _state.size(); }
 
     double E() { return (_E) ? (*_E) : (_E = accumulate(eMatrix.begin(), eMatrix.end(), 0.0 ) / 2.0).value(); }
 
