@@ -128,6 +128,13 @@ monteCarloStatistics montecarlo(ConfigManager *config){
 		// print out the states and times of running
 		printf("###########  end of calculations  #############\n");
 		printf("#\n");
+		printf("###########     final notes:      #############\n");
+		for (int tt = 0; tt < config->temperatures->size(); ++tt)
+		{
+			workers[tt]->printout_service();
+		}
+		printf("###########  end of final notes   #############\n");
+		printf("#\n");
 	}
 	
 

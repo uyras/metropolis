@@ -314,7 +314,7 @@ void ConfigManager::printColumnNames()
         printf(" %d:pt_acc_rate_heatup %d:pt_acc_rate_calculate",i,i+1); i+=2;
     }
     printf(" %d:id(T) %d:id(replica)",i,i+1); i+=2;
-    printf(" %d:time,s %d:E_final %d:final_state",i,i+1,i+2);
+    printf(" %d:time,s %d:E_final",i,i+1);
     printf("\n");
     fflush(stdout);
     // end print header

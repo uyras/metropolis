@@ -242,12 +242,11 @@ void Worker::printout(temp_t temperature)
         );
     }
 
-    printf(" %u %u %f %e %s",
+    printf(" %u %u %f %e",
         temperature.num_base,
         temperature.num_replica,
         duration.count() / 1000.,
-        this->fullRefreshEnergy(),
-        stateToString(state).c_str()
+        this->fullRefreshEnergy()
     );
     printf("\n");
     fflush(stdout);
@@ -255,6 +254,16 @@ void Worker::printout(temp_t temperature)
     {
         cp->save(_num);
     }
+}
+
+void Worker::printout_service()
+{
+    printf("#%d, time=%fs, %s, E=%e, final state: %s\n",
+        _num,
+        duration.count() / 1000.,
+        config->temperatures->at(_num).to_string().c_str(),
+        this->fullRefreshEnergy(),
+        stateToString(state).c_str());
 }
 
 bool Worker::exchange(shared_ptr<Worker> w1, shared_ptr<Worker> w2, double dBeta)

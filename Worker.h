@@ -57,6 +57,7 @@ public:
     optional< pair<double,state_t> > work(unsigned steps, bool calculateStatistics, double lowestEnergy);
 
     void printout(temp_t temperature);
+    void printout_service();
 
     mpf_class e;
     mpf_class e2;
