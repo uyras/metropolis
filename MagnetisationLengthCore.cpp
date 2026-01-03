@@ -6,6 +6,7 @@ MagnetisationLengthCore::MagnetisationLengthCore(
 CalculationParameter(sect,conf),
 mv(0,1024*8),
 mv2(0,2048*8),
+mv4(0,3076*8),
 currentState(sys->N(),1),
 enabledSpins(sys->N(),0)
 {
@@ -75,6 +76,8 @@ void MagnetisationLengthCore::incrementTotal(){
     
     this->mv += addVal;
     this->mv2 += addVal*addVal;
+    if (this->isBinder())
+        this->mv4 += addVal*addVal*addVal*addVal;
 }
 
 Vect MagnetisationLengthCore::getFullTotal(const state_t &_state) const

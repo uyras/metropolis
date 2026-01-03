@@ -28,6 +28,7 @@ class ConfigManager
 {
 private:
     std::string sysfile;
+    bool _binder = 0;
     unsigned heatup = 0;
     unsigned calculate = 0;
     int seed = 0;
@@ -76,6 +77,7 @@ public:
     std::string getSysfile() const { return this->sysfile; }
     const Vect & getField() const { return this->field; }
     bool isRestart() const {return this->restart; }
+    bool isBinder() const { return this->_binder; }
     double getRestartThreshold() const {return this->restartThreshold; }
     std::string getNewGSFilename() const {return this->newGSFilename; }
     inline unsigned getSaveStates() const { return this->saveStates; }

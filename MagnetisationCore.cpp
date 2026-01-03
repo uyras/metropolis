@@ -6,6 +6,7 @@ MagnetisationCore::MagnetisationCore(
 CalculationParameter(sect,conf),
 mv(0,1024*8),
 mv2(0,2048*8),
+mv4(0,3076*8),
 currentState(sys->N(),1),
 magnetisationValues(sys->N(),0),
 _sumModule(false)
@@ -103,6 +104,8 @@ void MagnetisationCore::incrementTotal(){
     else
         this->mv += addVal;
     this->mv2 += addVal*addVal;
+    if (this->isBinder())
+        this->mv4 += addVal*addVal*addVal*addVal;
 }
 
 double MagnetisationCore::getFullTotal(const state_t &_state) const

@@ -28,6 +28,7 @@ public:
     virtual void incrementTotal();
     virtual mpf_class getTotal(unsigned steps){ return this->mv / steps; }
     virtual mpf_class getTotal2(unsigned steps){ return this->mv2 / steps; }
+    virtual mpf_class getTotal4(unsigned steps){ return this->mv4 / steps; }
 
     virtual MagnetisationLengthCore * copy() { return new MagnetisationLengthCore(*this); }
 
@@ -47,6 +48,7 @@ private:
     Vect mOld;
     mpf_class mv;
     mpf_class mv2;
+    mpf_class mv4;
 };
 
 #endif //MAGNETISATIONLENGTHCORE_H

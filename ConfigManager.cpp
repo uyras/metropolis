@@ -42,6 +42,7 @@ inline size_t ConfigManager::registerCalculationParameter(inicpp::config & conf,
             std::vector< config_section_t > sections = explode(sect,explode_params);
             for (auto &s : sections){
                 this->parameters.push_back(make_unique<C>(s,this));
+                this->parameters.back()->setBinder(this->isBinder());
             }
         }
     }
@@ -117,6 +118,8 @@ ConfigManager::ConfigManager(int argc, char *argv[])
         if (sect.contains("restartthreshold")) this->restartThreshold = sect["restartthreshold"].get<inicpp::float_ini_t>();
         if (sect.contains("saveGS")) this->newGSFilename = sect["saveGS"].get<inicpp::string_ini_t>();
         if (sect.contains("savegs")) this->newGSFilename = sect["savegs"].get<inicpp::string_ini_t>();
+        if (sect.contains("binder") && 
+            sect["binder"].get<inicpp::boolean_ini_t>()) this->_binder = 1;
     }
     
     if (!commandLineParameters->sysfilename.empty())
@@ -131,6 +134,8 @@ ConfigManager::ConfigManager(int argc, char *argv[])
         this->seed = commandLineParameters->rseed;
     if (commandLineParameters->temperatures.size()>0)
         base_temperatures = commandLineParameters->temperatures;
+    if (commandLineParameters->binder)
+        this->_binder = 1;
 
     if (iniconfig.contains("parallel_tempering")){
         this->temperatures = PtParseConfig(iniconfig);
@@ -195,6 +200,7 @@ ConfigManager::ConfigManager(int argc, char *argv[])
                         spins);
                 
                 if (setDebug) core->setDebug();
+                core->setBinder(tmp.isBinder());
 
                 this->parameters.push_back(std::move(core));
                 ++i;
@@ -222,6 +228,7 @@ ConfigManager::ConfigManager(int argc, char *argv[])
                         sect["maxrange"].get<inicpp::float_ini_t>());
                 //core._methodVar = m;
                 if (setDebug) core->setDebug();
+                core->setBinder(tmp.isBinder());
 
                 // if need to save the histogram to the file
                 if (sect.contains("histogram") && sect["histogram"].get<inicpp::boolean_ini_t>()==true){
@@ -256,6 +263,7 @@ ConfigManager::ConfigManager(int argc, char *argv[])
 
                 if (setDebug) core->setDebug();
                 if (setModule) core->setModule(true);
+                core->setBinder(tmp.isBinder());
 
                 this->parameters.push_back(std::move(core));
                 ++i;
@@ -272,6 +280,7 @@ ConfigManager::ConfigManager(int argc, char *argv[])
                     spins);
 
             if (setDebug) core->setDebug();
+            core->setBinder(tmp.isBinder());
 
             this->parameters.push_back(std::move(core));
 
@@ -374,11 +383,22 @@ void ConfigManager::printColumnNames()
 {
     // print header
     printf("# legend (column names):\n");
-    printf("# 1:T 2:C(T)/N 3:<E> 4:<E^2> 5:threadId 6:seed");
-    unsigned i=7;
+    printf("# 1:T 2:C(T)/N 3:<E> 4:<E^2>");
+    unsigned i=5;
+    if(this->isBinder()){
+        printf(" %d:<E^4>",i);
+        i+=1;
+    }
+    printf(" %d:threadId %d:seed",i,i+1);
+    i+=2;
+
     for (auto & co : parameters){
         printf(" %d:<%s> %d:<%s^2>",i,co->parameterId().c_str(),i+1,co->parameterId().c_str());
         i+=2;
+        if(this->isBinder()){
+            printf(" %d:<%s^4>",i,co->parameterId().c_str());
+            i+=1;
+        }
     }
     printf(" %d:acc_rate_heatup %d:acc_rate_calculate",i,i+1); i+=2; // внутри printf i++ работает некорректно
     if (this->pt_enabled()){

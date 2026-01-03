@@ -6,6 +6,7 @@ CorrelationCore::CorrelationCore(
 CalculationParameter(sect, conf),
 cp(0,1024*8),
 cp2(0,2048*8),
+cp4(0,3072*8),
 currentState(sys->N(),1)
 {
     static const std::map<std::string, unsigned> methods_list = {{"xor",0},{"energy",1},{"scalar",2}};
@@ -159,8 +160,11 @@ void CorrelationCore::iterate(size_t id){
 }
 
 void CorrelationCore::incrementTotal(){
-    this->cp += double(this->cpOld)/this->correlationPairsNum;
-    this->cp2 += double(this->cpOld * this->cpOld)/(this->correlationPairsNum*this->correlationPairsNum);
+    double addVal = double(this->cpOld)/this->correlationPairsNum;
+    this->cp += addVal;
+    this->cp2 += addVal*addVal;
+    if (this->isBinder())
+        this->cp4 += addVal*addVal*addVal*addVal;
 }
 
 long CorrelationCore::getFullTotal(const state_t &_state) const

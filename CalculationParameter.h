@@ -45,6 +45,8 @@ public:
         
     inline std::string parameterId() const {return this->_parameterId;}
     inline bool isDebug() const {return this->_debug; }
+    inline bool isBinder() const {return this->_binder; }
+    void setBinder(bool val){this->_binder = val;}
     virtual bool check(unsigned) const = 0;
     virtual void printHeader() const = 0;
 
@@ -61,6 +63,7 @@ public:
     virtual void incrementTotal() = 0; // запускается после каждого шага Метрополиса
     virtual mpf_class getTotal(unsigned) = 0; //todo параметр функции - число шагов. Нужно избавиться от него, чтобы этот класс считал его сам
     virtual mpf_class getTotal2(unsigned) = 0;
+    virtual mpf_class getTotal4(unsigned) = 0;
     double getTotalDouble(unsigned steps) { return getTotal(steps).get_d(); };
     double getTotal2Double(unsigned steps) { return getTotal2(steps).get_d(); };
 
@@ -81,6 +84,7 @@ protected:
 private:
     std::string _parameterId;
     bool _debug;
+    bool _binder;
 };
 
 #endif //CALCULATIONPARAMETER_H

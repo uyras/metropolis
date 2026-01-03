@@ -39,6 +39,7 @@ Worker::Worker(unsigned num, int seed, const ConfigManager* _config) :
     _previousCalculateStatistics(false),
     e(0, 1024 * 8),
     e2(0, 2048 * 8),
+    e4(0, 3072 * 8),
     duration(0)
 {
     generator.seed(seed);
@@ -188,6 +189,9 @@ optional< pair<double,state_t> > Worker::work(unsigned steps, bool calculateStat
             {
                 e += eActual;
                 e2 += eActual * eActual;
+                if(config->isBinder()){
+                    e4 += e2 * e2;
+                }
                 for (auto &cp : calculationParameters)
                 {
                     cp->incrementTotal();
@@ -216,18 +220,30 @@ void Worker::printout(temp_t temperature)
     //print lines
     mpf_class ee = e / config->getCalculate();
     mpf_class ee2 = e2 / config->getCalculate();
+    mpf_class ee4;
+    if(config->isBinder()){
+        ee4 = e4 / config->getCalculate();
+    }
 
     mpf_class cT = (ee2 - (ee * ee)) / (temperature.t * temperature.t * config->N());
 
-    gmp_printf("%e %.10Fe %.10Fe %.10Fe %d %d",
-            temperature.t, cT.get_mpf_t(), ee.get_mpf_t(), ee2.get_mpf_t(),
-            omp_get_thread_num(), _seed);
+    gmp_printf("%e %.10Fe %.10Fe %.10Fe",
+            temperature.t, cT.get_mpf_t(), ee.get_mpf_t(), ee2.get_mpf_t());
+    if(config->isBinder()){
+        gmp_printf(" %.10Fe", ee4.get_mpf_t());
+    }
+    gmp_printf(" %d %d",
+        omp_get_thread_num(), _seed);
 
     for (auto &cp : calculationParameters)
     {
         gmp_printf(" %.10Fe %.10Fe",
                 cp->getTotal(config->getCalculate()).get_mpf_t(),
                 cp->getTotal2(config->getCalculate()).get_mpf_t());
+        if(config->isBinder()){
+            gmp_printf(" %.10Fe",
+                cp->getTotal4(config->getCalculate()).get_mpf_t());
+        }
     }
 
     printf(" %f %f",

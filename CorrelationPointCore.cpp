@@ -9,6 +9,7 @@ CorrelationPointCore::CorrelationPointCore(
 CalculationParameter(sect, conf),
 cp(0,1024*8),
 cp2(0,2048*8),
+cp4(0,3076*8),
 currentState(sys->N(),1),
 _histogramEnabled(false),
 _histogramFilename(""),
@@ -216,8 +217,11 @@ void CorrelationPointCore::iterate(size_t id){
 }
 
 void CorrelationPointCore::incrementTotal(){
-    this->cp += double(this->cpOld)/this->pointCount();
-    this->cp2 += double(this->cpOld * this->cpOld)/(this->pointCount() * this->pointCount());
+    double addVal = double(this->cpOld)/this->pointCount();
+    this->cp += addVal;
+    this->cp2 += addVal*addVal;
+    if (this->isBinder())
+        this->cp4 += addVal*addVal*addVal*addVal;
 
     if (this->_histogramEnabled){
         int i=0;

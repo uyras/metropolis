@@ -61,6 +61,7 @@ public:
 
     mpf_class e;
     mpf_class e2;
+    mpf_class e4;
     double eActual; // энергия текущей конфигурации системы. Обновляется итеративно при каждом перевороте. иногда полностью пересчитывается
     chrono::milliseconds duration;
     vector<std::unique_ptr<CalculationParameter>> calculationParameters;
