@@ -58,6 +58,7 @@ ConfigManager ConfigManager::init(
         if (sect.contains("restartthreshold")) tmp.restartThreshold = sect["restartthreshold"].get<inicpp::float_ini_t>();
         if (sect.contains("saveGS")) tmp.newGSFilename = sect["saveGS"].get<inicpp::string_ini_t>();
         if (sect.contains("savegs")) tmp.newGSFilename = sect["savegs"].get<inicpp::string_ini_t>();
+        if (sect.contains("binder") && sect["binder"].get<inicpp::boolean_ini_t>()) tmp._binder = 1;
     }
     
     if (!commandLineParameters.sysfilename.empty())
@@ -72,6 +73,8 @@ ConfigManager ConfigManager::init(
         tmp.seed = commandLineParameters.rseed;
     if (commandLineParameters.temperatures.size()>0)
         tmp.temperatures = commandLineParameters.temperatures;
+    if (commandLineParameters.binder)
+        tmp._binder = 1;
 
     if (tmp.sysfile.compare(tmp.sysfile.length()-4,string::npos,".csv") == 0){ //if filename ends with .csv
         if (tmp.isPBC()) throw(std::invalid_argument("PBC option is not working when you load .csv - files"));
@@ -147,6 +150,7 @@ ConfigManager ConfigManager::init(
                         spins);
                 
                 if (setDebug) core->setDebug();
+                core->setBinder(tmp.isBinder());
 
                 tmp.parameters.push_back(std::move(core));
                 ++i;
@@ -174,6 +178,7 @@ ConfigManager ConfigManager::init(
                         sect["maxrange"].get<inicpp::float_ini_t>());
                 //core._methodVar = m;
                 if (setDebug) core->setDebug();
+                core->setBinder(tmp.isBinder());
 
                 // if need to save the histogram to the file
                 if (sect.contains("histogram") && sect["histogram"].get<inicpp::boolean_ini_t>()==true){
@@ -208,6 +213,7 @@ ConfigManager ConfigManager::init(
 
                 if (setDebug) core->setDebug();
                 if (setModule) core->setModule(true);
+                core->setBinder(tmp.isBinder());
 
                 tmp.parameters.push_back(std::move(core));
                 ++i;
@@ -224,6 +230,7 @@ ConfigManager ConfigManager::init(
                     spins);
 
             if (setDebug) core->setDebug();
+            core->setBinder(tmp.isBinder());
 
             tmp.parameters.push_back(std::move(core));
 
@@ -303,11 +310,22 @@ void ConfigManager::printHeader()
     }
 
     printf("# legend (column names):\n");
-    printf("# 1:T 2:C(T)/N 3:<E> 4:<E^2> 5:threadId 6:seed");
-    i=7;
+    printf("# 1:T 2:C(T)/N 3:<E> 4:<E^2>");
+    i=5;
+    if(this->isBinder()){
+        printf(" %d:<E^4>",i);
+        i+=1;
+    }
+    printf(" %d:threadId %d:seed",i,i+1);
+    i+=2;
+
     for (auto & co : parameters){
         printf(" %d:<%s> %d:<%s^2>",i,co->parameterId().c_str(),i+1,co->parameterId().c_str());
         i+=2;
+        if(this->isBinder()){
+            printf(" %d:<%s^4>",i,co->parameterId().c_str());
+            i+=1;
+        }
     }
     printf(" %d:time,s",i);
     printf("\n");

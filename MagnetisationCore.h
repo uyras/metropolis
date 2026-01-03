@@ -27,6 +27,7 @@ public:
     virtual void incrementTotal();
     virtual mpf_class getTotal(unsigned steps){ return this->mv / steps; }
     virtual mpf_class getTotal2(unsigned steps){ return this->mv2 / steps; }
+    virtual mpf_class getTotal4(unsigned steps){ return this->mv4 / steps; }
 
     virtual MagnetisationCore * copy() { return new MagnetisationCore(*this); }
 
@@ -44,6 +45,7 @@ private:
     double mOld;
     mpf_class mv;
     mpf_class mv2;
+    mpf_class mv4;
     double _sumModule;
 };
 

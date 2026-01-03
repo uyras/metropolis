@@ -50,6 +50,7 @@ public:
     const Vect & getField() const { return this->field; }
     bool isPBC() const { return this->pbc; }
     bool isCSV() const { return this->_csv;}
+    bool isBinder() const { return this->_binder; }
     bool isRestart() const {return this->restart; }
     double getRestartThreshold() const {return this->restartThreshold; }
     std::string getNewGSFilename() {return this->newGSFilename; }
@@ -70,6 +71,7 @@ private:
     std::string sysfile;
     bool pbc = 0;
     bool _csv = 0;
+    bool _binder = 0;
     unsigned heatup = 0;
     unsigned calculate = 0;
     double range = 0;

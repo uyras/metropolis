@@ -9,9 +9,10 @@ class CalculationParameter
 {
 public:
     CalculationParameter(const std::string & parameterId, PartArray * prototype):
-        _debug(false),_parameterId(parameterId),prototype(prototype) {};
+        _debug(false), _binder(false), _parameterId(parameterId), prototype(prototype) {};
     std::string parameterId() const {return this->_parameterId;}
     void setDebug(){this->_debug = true;}
+    void setBinder(bool val){this->_binder = val;}
     virtual bool check(unsigned) const = 0;
     virtual void printHeader(unsigned) const = 0;
     virtual bool init(PartArray * sys) {this->sys = sys; return true;};
@@ -20,6 +21,7 @@ public:
     virtual void incrementTotal() = 0; // запускается после каждого шага Метрополиса
     virtual mpf_class getTotal(unsigned) = 0;
     virtual mpf_class getTotal2(unsigned) = 0;
+    virtual mpf_class getTotal4(unsigned) = 0;
     double getTotalDouble(unsigned steps) { return getTotal(steps).get_d(); };
     double getTotal2Double(unsigned steps) { return getTotal2(steps).get_d(); };
 
@@ -36,6 +38,7 @@ public:
 
 protected:
     bool _debug;
+    bool _binder;
     PartArray * sys;
     const PartArray * prototype;
 

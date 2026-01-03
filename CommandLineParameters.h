@@ -13,7 +13,8 @@ public:
     int cSteps;                  // calculate steps
     int rseed;                   // random seed value
     double iRange;                    // interaction range
-    bool showExample;
+    bool showExample = 0;
+    bool binder = 0;
     int saveStates;
 
 protected:
@@ -51,6 +52,9 @@ protected:
                 Dont work on heatup phase. Saves only on calculate. \
                 Default value is 0 means do not save the data.\
                 File name is \"<input filename>_<temperature_number>_<step>.mfsys\"");
+        params.add_parameter(binder,"","--binder")
+            .help("if set, calculate fourth-order cumulants for \
+                all parameters (energy, magnetisation, etc.).");
         params.add_parameter(showExample,"-e","--example")
             .help("Print out the example of ini-file and exit.");
         params.add_default_help_option();

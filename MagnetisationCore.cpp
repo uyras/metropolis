@@ -9,6 +9,7 @@ vector(vector),
 spins(spins),
 mv(0,1024*8),
 mv2(0,2048*8),
+mv4(0,3076*8),
 mOld(0),
 _sumModule(false)
 {
@@ -104,6 +105,8 @@ void MagnetisationCore::incrementTotal(){
     else
         this->mv += addVal;
     this->mv2 += addVal*addVal;
+    if (this->_binder)
+        this->mv4 += addVal*addVal*addVal*addVal;
 }
 
 double MagnetisationCore::getFullTotal(const PartArray * _sys) const

@@ -144,6 +144,7 @@ monteCarloStatistics montecarlo(ConfigManager &config){
 				
 				mpf_class e(0, 1024 * 8);
 				mpf_class e2(0, 2048 * 8);
+				mpf_class e4(0, 3072 * 8);
 
 				/////////// duplicate the system
 				PartArray sys(config.getSystem());
@@ -330,6 +331,9 @@ monteCarloStatistics montecarlo(ConfigManager &config){
 						{
 							e += eOld;
 							e2 += eOld * eOld;
+							if(config.isBinder()){
+								e4 += e2 * e2;
+							}
 							for (auto &cp : calculationParameters)
 							{
 								cp->incrementTotal();
@@ -345,6 +349,9 @@ monteCarloStatistics montecarlo(ConfigManager &config){
 				if (!statData.foundLowerEnergy) {
 					e /= config.getCalculate();
 					e2 /= config.getCalculate();
+					if(config.isBinder()){
+						e4 /= config.getCalculate();
+					}
 
 					mpf_class cT = (e2 - (e * e)) / (t * t * N);
 
@@ -354,14 +361,22 @@ monteCarloStatistics montecarlo(ConfigManager &config){
 
 	#pragma omp critical
 					{
-						gmp_printf("%e %.30Fe %.30Fe %.30Fe %d %d",
-								t, cT.get_mpf_t(), e.get_mpf_t(), e2.get_mpf_t(),
+						gmp_printf("%e %.30Fe %.30Fe %.30Fe",
+								t, cT.get_mpf_t(), e.get_mpf_t(), e2.get_mpf_t());
+						if(config.isBinder()){
+							gmp_printf(" %.30Fe", e4.get_mpf_t());
+						}
+						gmp_printf(" %d %d",
 								omp_get_thread_num(), trseed);
 						for (auto &cp : calculationParameters)
 						{
 							gmp_printf(" %.30Fe %.30Fe",
 									cp->getTotal(config.getCalculate()).get_mpf_t(),
 									cp->getTotal2(config.getCalculate()).get_mpf_t());
+							if(config.isBinder()){
+								gmp_printf(" %.30Fe",
+									cp->getTotal4(config.getCalculate()).get_mpf_t());
+							}
 						}
 						auto rtime = std::chrono::duration_cast<std::chrono::milliseconds>(statData.temperature_times_end[tt] - statData.temperature_times_start[tt]).count();
 						printf(" %f", rtime / 1000.);

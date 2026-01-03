@@ -13,7 +13,8 @@ _maxRange(maxRange),
 _methodVar(methodVar),
 spins(spins),
 cp(0,1024*8),
-cp2(0,2048*8)
+cp2(0,2048*8),
+cp4(0,3072*8)
 {
     minRange2 = _minRange*_minRange;
     maxRange2 = _maxRange*_maxRange;
@@ -144,8 +145,11 @@ void CorrelationCore::iterate(unsigned id){
 }
 
 void CorrelationCore::incrementTotal(){
-    this->cp += double(this->cpOld)/this->correlationPairsNum;
-    this->cp2 += double(this->cpOld * this->cpOld)/(this->correlationPairsNum*this->correlationPairsNum);
+    double addVal = double(this->cpOld)/this->correlationPairsNum;
+    this->cp += addVal;
+    this->cp2 += addVal*addVal;
+    if (this->_binder)
+        this->cp4 += addVal*addVal*addVal*addVal;
 }
 
 long CorrelationCore::getFullTotal(const PartArray * _sys) const

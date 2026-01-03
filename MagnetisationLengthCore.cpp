@@ -7,6 +7,7 @@ CalculationParameter(parameterId,prototype),
 spins(spins),
 mv(0,1024*8),
 mv2(0,2048*8),
+mv4(0,3076*8),
 mOld(0,0,0)
 {
     if (this->spins.size() == 0) {
@@ -80,6 +81,7 @@ void MagnetisationLengthCore::incrementTotal(){
     double addVal = this->mOld.length() / this->spins.size();
     this->mv += addVal;
     this->mv2 += addVal*addVal;
+    this->mv4 += addVal*addVal*addVal*addVal;
 }
 
 double MagnetisationLengthCore::getFullTotal(Vect & val) const

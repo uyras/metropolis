@@ -34,6 +34,7 @@ public:
     virtual void incrementTotal();
     virtual mpf_class getTotal(unsigned steps){ return this->cp / steps;}
     virtual mpf_class getTotal2(unsigned steps){ return this->cp2 / steps;}
+    virtual mpf_class getTotal4(unsigned steps){ return this->cp4 / steps;}
 
     virtual CorrelationCore * copy() { return new CorrelationCore(*this); }
 
@@ -61,6 +62,7 @@ private:
 
     mpf_class cp;
     mpf_class cp2;
+    mpf_class cp4;
     long cpOld;
 
     bool areNeighbours(Part* partA, Part* partB)
