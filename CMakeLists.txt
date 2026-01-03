@@ -16,7 +16,8 @@ include_directories("argumentum-src/include" "inicpp/include")
 set(METROPOLIS_SRC
 	main.cpp
 	ConfigManager.cpp
-#	CorrelationCore.cpp 
+	CalculationParameter.cpp
+	CorrelationCore.cpp 
 #	CorrelationPointCore.cpp 
 #	MagnetisationCore.cpp
 #	MagnetisationLengthCore.cpp

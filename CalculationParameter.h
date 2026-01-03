@@ -4,8 +4,11 @@
 #include <string>
 #include <memory>
 #include <gmpxx.h>
+#include <inicpp/inicpp.h>
 #include "misc.h"
 #include "MagneticSystem.h"
+
+class ConfigManager; //защита от cross-include
 
 /**
  * @brief Класс используется как шаблон для дополнительных вычисляемых параметров
@@ -20,7 +23,9 @@
  * 
  * При каждом успешном перевороте спина выполняется функция iterate(id) где id - номер перевернутого спина.
  * Шаг Метрополиса - N попыток перевернуть случайный спин. После каждого шага запускается
- * функция incrementTotal(). Она позволяет
+ * функция incrementTotal(). Она позволяет ...
+ * 
+ * Набор параметров создается на основе конфиг-файла (.ini).
  * 
  */
 class CalculationParameter
@@ -33,12 +38,12 @@ public:
      * @param parameterId id параметра. Обязателен для всех параметров.
      * @param prototype Прототип магнитной системы. Пока не понятно нафиг нужен
      */
-    CalculationParameter(const std::string & parameterId, shared_ptr<MagneticSystem> prototype):
-        _debug(false),_parameterId(parameterId),prototype(prototype) {};
-    std::string parameterId() const {return this->_parameterId;}
-    void setDebug(){this->_debug = true;}
+    CalculationParameter(const config_section_t &sect, const ConfigManager *conf);
+        
+    inline std::string parameterId() const {return this->_parameterId;}
+    inline bool isDebug() const {return this->_debug; }
     virtual bool check(unsigned) const = 0;
-    virtual void printHeader(unsigned) const = 0;
+    virtual void printHeader() const = 0;
 
     /**
      * @brief Инициирует внутренние значения класса для того чтобы работал iterate.
@@ -47,9 +52,9 @@ public:
      * 
      * @param state конфигурация магнитной системы, для которой инициировать состояние
      */
-    virtual void init(state_t state) = 0;
+    virtual void init(const state_t &state) = 0;
 
-    virtual void iterate(unsigned id) = 0; // запускается при каждом успешном перевороте спина
+    virtual void iterate(size_t id) = 0; // запускается при каждом успешном перевороте спина
     virtual void incrementTotal() = 0; // запускается после каждого шага Метрополиса
     virtual mpf_class getTotal(unsigned) = 0; //todo параметр функции - число шагов. Нужно избавиться от него, чтобы этот класс считал его сам
     virtual mpf_class getTotal2(unsigned) = 0;
@@ -68,11 +73,11 @@ public:
     virtual void save(unsigned num){};
 
 protected:
-    bool _debug;
-    shared_ptr<MagneticSystem> prototype;
+    const shared_ptr<MagneticSystem> sys;
 
 private:
     std::string _parameterId;
+    bool _debug;
 };
 
 #endif //CALCULATIONPARAMETER_H

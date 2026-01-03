@@ -1,5 +1,53 @@
 #include "ConfigManager.h"
 
+std::vector<config_section_t> ConfigManager::explode(const inicpp::section& origin, const vector<string>& params)
+{
+    std::vector<config_section_t> list_to_explode; //список секций которые нужно расширить
+    list_to_explode.push_back({origin.get_name(),origin});
+
+    std::vector<config_section_t> list_to_explode_copy;
+    for (const auto & param : params){
+        if (origin.contains(param) && origin[param].is_list()){
+            // чтобы не изменять список по которому итерируем, копируем его в list_to_explode_copy
+            list_to_explode_copy = list_to_explode;
+            list_to_explode.clear();
+            for (auto val : origin[param].get_list<inicpp::string_ini_t>()){
+                // копируем список list_to_explode где каждый элемент list_to_explode[i][param] больше не массив
+                for (auto origin_list_item : list_to_explode_copy){
+                    origin_list_item.data[param].set<inicpp::string_ini_t>(val);
+                    origin_list_item.name = origin.get_name() + "_" + to_string(list_to_explode.size());
+                    list_to_explode.push_back(origin_list_item);
+                }
+            }
+        }
+    }
+    // если ни одного параметра не раскрыли, то возвращаем оригинальный параметр в виде списка
+    return list_to_explode; 
+}
+
+template <class C>
+inline size_t ConfigManager::registerCalculationParameter(inicpp::config & conf, vector<string> explode_params)
+{
+    for (auto & sect: conf){
+        const std::string parameterString = sect.get_name();
+
+        // все вычисляемые параметры должны иметь в имени секции символ двоеточие
+        std::size_t colpos=parameterString.find_first_of(':');
+        if (colpos==std::string::npos) continue;
+
+        const std::string parameterName = parameterString.substr(0,colpos);
+        const std::string parameterId = parameterString.substr(colpos+1);
+
+        if (parameterName == C::name()) {
+            std::vector< config_section_t > sections = explode(sect,explode_params);
+            for (auto &s : sections){
+                this->parameters.push_back(make_unique<C>(s,this));
+            }
+        }
+    }
+    return 0;
+}
+
 ConfigManager::ConfigManager(int argc, char *argv[])
 {
     //--------------- старая функция readParameters
@@ -96,6 +144,10 @@ ConfigManager::ConfigManager(int argc, char *argv[])
     
     this->saveStates = commandLineParameters->saveStates;
     this->saveStateFileBasename = this->sysfile.substr(0, this->sysfile.find_last_of("."));
+
+    /***** тут перечисляем список вычисляемых параметров, чтобы их распарсили из ini-файла */
+    registerCalculationParameter<CorrelationCore>(iniconfig, {"method"});
+
 /*
     for (auto & sect: iniconfig){
         const std::string parameterString = sect.get_name();
@@ -113,6 +165,8 @@ ConfigManager::ConfigManager(int argc, char *argv[])
 
 
         if (parameterName == "correlation") {
+            std::vector< inicpp::section > sections = explode(sect,{"method"});
+
             if (!sect.contains("method"))
                 throw(std::string("Parameter " + parameterString + " should have method field."));
             const auto opt = sect["method"];
@@ -222,6 +276,8 @@ ConfigManager::ConfigManager(int argc, char *argv[])
     }
 */
 
+
+
     //obtain the avaliable number of threads
     #pragma omp parallel
     {
@@ -301,7 +357,9 @@ void ConfigManager::printHeader()
 
     unsigned i=0;
     for (auto & co : parameters){
-        co->printHeader(i); ++i;
+        printf("##### calculation param #%3d #####\n",i); ++i;
+        co->printHeader(); 
+        printf("##### ---------------------- #####\n#\n");
     }
 
     

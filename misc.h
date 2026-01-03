@@ -8,12 +8,22 @@
 #include <algorithm>
 #include <chrono>
 #include <cmath>
+#include <inicpp/inicpp.h>
 
 using namespace std;
 
 //------------------структуры данных--------------------//
 
 typedef vector<signed char> state_t;
+
+/**
+ * @brief структура-обертка для секции, так как в inicpp 
+ * нельзя напрямую поменять имя секции. Оно задается только при создании новой секции, при копировании копируется старое
+ */
+struct config_section_t {
+    string name;
+    inicpp::section data;
+};
 
 /**
  * @brief Структура для сохранения статистики работы Монте-Карло.
@@ -103,6 +113,7 @@ Vect strToVect(std::string val);
 Vect translatePBC(const Vect &a, const Vect &b, const Vect size);
 
 double distance(const Vect &a, const Vect &b);
+double distance_2(const Vect &a, const Vect &b);
 
 double scalar(const Vect &a, const Vect &b);
 

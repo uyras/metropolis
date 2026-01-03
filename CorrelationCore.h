@@ -1,36 +1,33 @@
 #ifndef CORELLATIONCORE_H
 #define CORELLATIONCORE_H
 
+#include <inicpp/inicpp.h>
 #include <vector>
 #include <string>
 #include <map>
 #include <gmpxx.h>
 #include <cstdint>
-#include "PartArray.h"
-#include "dos2.h"
+#include <forward_list>
 #include "CalculationParameter.h"
+#include "ConfigManager.h"
+#include "misc.h"
+#include "Hamiltonians.h"
 
 class CorrelationCore: public CalculationParameter
 {
 
 public:
-    std::vector< std::forward_list < Part* > > correlationNeighbours;
-    std::map< std::pair<unsigned, unsigned>, short > correlationValues;
-    double correlationPairsNum;
-
     CorrelationCore(
-        const std::string & parameterId,
-        PartArray * prototype,
-        double minRange, 
-        double maxRange, 
-        unsigned methodVar,
-        const std::vector<uint64_t> & spins);
+        const config_section_t &sect,
+        const ConfigManager *conf);
+
+    static string name(){ return "correlation"; }
 
     virtual bool check(unsigned) const;
-    virtual void printHeader(unsigned) const;
-    virtual bool init(PartArray * sys);
+    virtual void printHeader() const;
+    virtual void init(const state_t &state);
 
-    virtual void iterate(unsigned id);
+    virtual void iterate(size_t id);
     virtual void incrementTotal();
     virtual mpf_class getTotal(unsigned steps){ return this->cp / steps;}
     virtual mpf_class getTotal2(unsigned steps){ return this->cp2 / steps;}
@@ -39,34 +36,50 @@ public:
 
 
 private:
-    char method(const Part* partA, const Part* partB) const;
-    char fxor(const Part* partA, const Part* partB) const;
-    char feSign(const Part* partA, const Part* partB) const;
-    char fScalar(const Part* partA, const Part* partB) const;
+    char method(const size_t idA, const size_t idB) const;
+    char fxor(const size_t idA, const size_t idB) const;
+    char feSign(const size_t idA, const size_t idB) const;
+    char fScalar(const size_t idA, const size_t idB) const;
 
+    void initMethod1( size_t idA, size_t idB );
+    void initMethod2( size_t idA, size_t idB );
+    void initMethod3( size_t idA, size_t idB );
 
-    void initMethod1(Part* partA, Part* partB);
-    void initMethod2( Part* partA, Part* partB);
-    void initMethod3( Part* partA, Part* partB);
+    long getFullTotal(const state_t &_state) const;
 
-    long getFullTotal(const PartArray * _sys) const;
+    /**
+     * @brief Для каждого спина список соседних, с которыми считаются корреляции
+     */
+    std::vector< std::forward_list < size_t > > correlationNeighbours;
 
-    double minRange2;
-    double maxRange2;
+    /**
+     * @brief 
+     */
+    std::map< std::pair<size_t, size_t>, signed short > correlationValues;
+    double correlationPairsNum;
 
     double _minRange;
     double _maxRange;
     unsigned _methodVar;
-    std::vector<uint64_t> spins;
+
+    /**
+     * @brief Список спинов, для которых считается CorrelationCore
+     */
+    std::vector<size_t> spins;
+
+    /**
+     * @brief В этой переменной сохраняется текущее состояние системы, для которой актуально значение cpOld.  
+     */
+    state_t currentState;
 
     mpf_class cp;
     mpf_class cp2;
     long cpOld;
 
-    bool areNeighbours(Part* partA, Part* partB)
+    bool areNeighbours(size_t idA, size_t idB)
     { 
-        std::forward_list < Part* > &tmp = correlationNeighbours[partA->Id()];
-        return std::find(tmp.begin(), tmp.end(), partB) != tmp.end();
+        std::forward_list < size_t > &tmp = correlationNeighbours[idA];
+        return std::find(tmp.begin(), tmp.end(), idB) != tmp.end();
     }
 };
 

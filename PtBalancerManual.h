@@ -30,7 +30,6 @@ public:
 
     void init();
     void parseConfig(inicpp::section configSection);
-    void rebalance();
     void printHeader();
     size_t size(); //общее число температур
     size_t sizeBase(); //число базовых температур

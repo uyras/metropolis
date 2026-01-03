@@ -121,6 +121,15 @@ double distance(const Vect &a, const Vect &b)
         );
 }
 
+double distance_2(const Vect &a, const Vect &b)
+{
+    Vect d = {a.x-b.x,a.y-b.y,a.z-b.z};
+    return
+        d.x * d.x +
+        d.y * d.y +
+        d.z * d.z;
+}
+
 double scalar(const Vect &a, const Vect &b)
 {
     return (a.x * b.x) + (a.y * b.y) + (a.z * b.z);

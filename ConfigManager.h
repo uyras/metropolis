@@ -13,7 +13,7 @@
 #include "MagneticSystem.h"
 #include "CommandLineParameters.h"
 #include "CalculationParameter.h"
-//#include "CorrelationCore.h"
+#include "CorrelationCore.h"
 //#include "CorrelationPointCore.h"
 //#include "MagnetisationCore.h"
 //#include "MagnetisationLengthCore.h"
@@ -22,8 +22,7 @@
 #include "PtBalancerFactory.h"
 #include "PtBalancerDefault.h"
 
-static const std::map<std::string, unsigned> methods = 
-    {{"xor",0},{"energy",1},{"scalar",2}};
+
 
 class ConfigManager
 {
@@ -39,6 +38,22 @@ private:
     std::string saveStateFileBasename;
     std::string newGSFilename;
     std::vector<std::unique_ptr< CalculationParameter > > parameters;
+
+    /**
+     * @brief Если в конфигурации есть параметры, на основе которых должно создаваться несколько CalculationParameter,
+     * то эта функция разбивает секцию конфига на несколько виртуальных секций, в каждой из которых присутствует
+     * всего по одному параметру.
+     * К имени нового параметра добавляется индекс "_N", где N - порядковый номер.
+     * 
+     * @param origin Оригинальная секция
+     * @param params список параметров, по которым разбивать.
+     * например, указаны 2 параметра foo, bar и для них указаны значения [1,2] и ['a','b']
+     * тогда будет такой список секций: [1,'a'],[2,'a'],[1,'b'],[2,'b']
+     * @return std::vector< inicpp::section > 
+     */
+    std::vector< config_section_t > explode(const inicpp::section& origin, const vector<string>& params);
+
+    template<class C> size_t registerCalculationParameter(inicpp::config & conf, vector<string> explode_params);
 
 public:
     shared_ptr<MagneticSystem> system;

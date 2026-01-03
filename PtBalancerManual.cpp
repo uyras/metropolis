@@ -36,10 +36,6 @@ void PtBalancerManual::parseConfig(inicpp::section configSection)
     }
 }
 
-void PtBalancerManual::rebalance()
-{
-}
-
 void PtBalancerManual::printHeader()
 {
     printf("# PT replica temperature list:\n");
