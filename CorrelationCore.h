@@ -5,6 +5,7 @@
 #include <string>
 #include <map>
 #include <gmpxx.h>
+#include <cstdint>
 #include "PartArray.h"
 #include "dos2.h"
 #include "CalculationParameter.h"
