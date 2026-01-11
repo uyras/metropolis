@@ -50,6 +50,8 @@ private:
 
     long getFullTotal(const PartArray * _sys) const;
     unsigned pointCount() const {return X.size();}
+    //calculate how much spins involved in correlation points
+    unsigned spinsInvolvedCount() const; 
 
     short method(const Part* partA, const Part* partB) const;
 

@@ -43,6 +43,7 @@ bool CorrelationPointCore::check(unsigned N) const
 void CorrelationPointCore::printHeader(unsigned num) const
 {
 
+
     printf("##### calculation param #%d #####\n",num);
     printf("# type: correlationpoint\n");
     printf("# id: %s\n",this->parameterId().c_str());
@@ -55,18 +56,18 @@ void CorrelationPointCore::printHeader(unsigned num) const
     printf("# minimal interaction distance: %.2f\n",this->_minRange);
     printf("# maximal interaction distance: %.2f\n",this->_maxRange);
 
-    printf("# points: %d; (%.2f avg spins per point, %.2f avg. neighbours)\n",
+    printf("# points: %zd; (%.2f avg spins per point, %.2f avg. neighbours per spin)\n",
             this->X.size(),
             this->spinsInPoint,
-            this->correlationPairsNum/double(this->prototype->size()));
+            this->correlationPairsNum*2./double(this->spinsInvolvedCount()));
     printf("#    coordinates: format is <num:(x,y):spins>, <...>, ...\n");
-    printf("# 0:(%f,%f):%d",
+    printf("# 0:(%f,%f):%ld",
         this->X[0],
         this->Y[0],
         std::distance(this->correlationPointSpins[0].begin(),
                         this->correlationPointSpins[0].end()));
     for (int i=1; i<this->X.size(); ++i)
-        printf(", %d:(%f,%f):%d",i,
+        printf(", %d:(%f,%f):%ld",i,
             this->X[i],
             this->Y[i],
             std::distance(this->correlationPointSpins[i].begin(),
@@ -74,6 +75,22 @@ void CorrelationPointCore::printHeader(unsigned num) const
     printf("\n");
 
     printf("#\n");
+
+    if (_debug) {
+        fprintf(stderr,"# (debug) spins (and its neighbours in brackets) for each point:\n");
+        for (size_t i=0; i < this->correlationPointSpins.size(); i++){
+            fprintf(stderr,"# point %zd: ", i);
+            for (auto s : this->correlationPointSpins[i]){
+                fprintf(stderr,"%zd (", s->Id());
+                for (auto n : this->correlationNeighbours[s->Id()]){
+                    fprintf(stderr,"%zd,",n->Id());
+                }
+                fprintf(stderr,"), ");
+            }
+            fprintf(stderr,"\n");
+        }
+    }
+
     return;
 }
 
@@ -112,7 +129,6 @@ bool CorrelationPointCore::init(PartArray * sys)
             if (space2<=dist2){
                 this->correlationPointSpins[i].push_front(part);
                 ++spinsInCurrentPoint;
-                spinsInPoint += 1;
             }
         }
         if (spinsInCurrentPoint==0){
@@ -160,16 +176,6 @@ bool CorrelationPointCore::init(PartArray * sys)
         ++i;
     }
     this->correlationPairsNum/=2;
-
-    if (_debug) {
-        for (auto partA : sys->parts){
-            fprintf(stderr,"# neigh for %zd: ",partA->Id());
-            for (auto partB : this->correlationNeighbours[partA->Id()]){
-                fprintf(stderr,"%zd,",partB->Id());
-            }
-            fprintf(stderr,"\n");
-        }
-    }
 
     this->cpOld = this->getFullTotal(this->sys);
 
@@ -225,6 +231,15 @@ long CorrelationPointCore::getFullTotal(const PartArray * _sys) const
             }
     }
     return res/2;
+}
+
+unsigned CorrelationPointCore::spinsInvolvedCount() const
+{
+    unsigned res = 0;
+    for (auto cps: this->correlationPointSpins){
+        res += std::distance(cps.begin(), cps.end());
+    }
+    return res;
 }
 
 short CorrelationPointCore::method(const Part* partA, const Part* partB) const
