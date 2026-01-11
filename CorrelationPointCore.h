@@ -67,6 +67,8 @@ private:
 
     long getFullTotal(const state_t &_state) const;
     unsigned pointCount() const {return X.size();}
+    //calculate how much spins involved in correlation points
+    unsigned spinsInvolvedCount() const; 
 
     short method(const size_t idA, const size_t idB) const;
 

@@ -78,7 +78,6 @@ void CorrelationPointCore::findPointsArray()
             if (space2<=dist2){
                 this->correlationPointSpins[i].push_front(id);
                 ++spinsInCurrentPoint;
-                spinsInPoint += 1;
             }
         }
         if (spinsInCurrentPoint==0){
@@ -124,16 +123,6 @@ void CorrelationPointCore::findPointsArray()
     }
     this->correlationPairsNum/=2;
 
-    if (this->isDebug()) {
-        for (size_t idA = 0; idA < sys->N(); idA++){
-            fprintf(stderr,"# neigh for %zd: ",idA);
-            for (auto idB : this->correlationNeighbours[idA]){
-                fprintf(stderr,"%zd,",idB);
-            }
-            fprintf(stderr,"\n");
-        }
-    }
-
     if (this->_histogramEnabled){
         dos.resize(-maxSpinsInPoint,maxSpinsInPoint,maxSpinsInPoint*2+1);
         dos.clear();
@@ -173,10 +162,10 @@ void CorrelationPointCore::printHeader() const
     printf("# minimal interaction distance: %.2f\n",this->_minRange);
     printf("# maximal interaction distance: %.2f\n",this->_maxRange);
 
-    printf("# points: %lu; (%.2f avg spins per point, %.2f avg. neighbours)\n",
+    printf("# points: %lu; (%.2f avg spins per point, %.2f avg. neighbours per spin)\n",
             this->X.size(),
             this->spinsInPoint,
-            this->correlationPairsNum/double(this->sys->N()));
+            this->correlationPairsNum*2./double(this->spinsInvolvedCount()));
     printf("#    coordinates: format is <num:(x,y):spins>, <...>, ...\n");
     printf("# 0:(%f,%f):%ld",
         this->X[0],
@@ -192,6 +181,23 @@ void CorrelationPointCore::printHeader() const
     printf("\n");
 
     printf("#\n");
+
+
+    if (this->isDebug()) {
+        fprintf(stderr,"# (debug) spins (and its neighbours in brackets) for each point:\n");
+        for (size_t i=0; i < this->correlationPointSpins.size(); i++){
+            fprintf(stderr,"# point %zd: ", i);
+            for (auto s : this->correlationPointSpins[i]){
+                fprintf(stderr,"%zd (", s);
+                for (auto n : this->correlationNeighbours[s]){
+                    fprintf(stderr,"%zd,",n);
+                }
+                fprintf(stderr,"), ");
+            }
+            fprintf(stderr,"\n");
+        }
+    }
+
     return;
 }
 
@@ -249,6 +255,15 @@ long CorrelationPointCore::getFullTotal(const state_t &_state) const
         }
     }
     return res/2;
+}
+
+unsigned CorrelationPointCore::spinsInvolvedCount() const
+{
+    unsigned res = 0;
+    for (auto cps: this->correlationPointSpins){
+        res += std::distance(cps.begin(), cps.end());
+    }
+    return res;
 }
 
 short CorrelationPointCore::method(const size_t idA, const size_t idB) const
