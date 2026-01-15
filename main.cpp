@@ -169,6 +169,8 @@ monteCarloStatistics montecarlo(ConfigManager &config){
 					cout<<endl;
 				}*/
 
+				ofstream saveShortFile;
+
 				const unsigned N = sys.size();
 
 				bool swapRes;
@@ -200,6 +202,14 @@ monteCarloStatistics montecarlo(ConfigManager &config){
 						for (auto &cp : calculationParameters)
 						{
 							cp->init(&sys); // attach the system and calculate the init value
+						}
+
+						if (config.getSaveShort()){
+							saveShortFile.open(config.getSaveShortFileName(tt));
+							saveShortFile<<"# t = "<<t<<endl;
+							saveShortFile<<"# states below are after "<<config.getHeatup()<<" heatup MC steps"<<endl;
+							saveShortFile<<"# legend: "<<endl;
+							saveShortFile<<"# <step>\t<configuration>"<<endl;
 						}
 					}
 
@@ -342,8 +352,15 @@ monteCarloStatistics montecarlo(ConfigManager &config){
 							if (config.getSaveStates()>0 && step % config.getSaveStates() == 0){
 								sys.save( config.getSaveStateFileName(tt,step) );
 							}
+							if (config.getSaveShort()>0 && step % config.getSaveShort() == 0){
+								saveShortFile<<step<<"\t"<<sys.state.toString()<<endl;
+							}
 						}
 					}
+				}
+
+				if (config.getSaveShort() && saveShortFile.is_open()){
+					saveShortFile.close();
 				}
 
 				if (!statData.foundLowerEnergy) {

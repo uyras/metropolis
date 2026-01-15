@@ -16,6 +16,7 @@ public:
     bool showExample = 0;
     bool binder = 0;
     int saveStates;
+    int saveShort;
 
 protected:
     void add_parameters(argumentum::ParameterConfig &params) override
@@ -52,6 +53,12 @@ protected:
                 Dont work on heatup phase. Saves only on calculate. \
                 Default value is 0 means do not save the data.\
                 File name is \"<input filename>_<temperature_number>_<step>.mfsys\"");
+        params.add_parameter(saveShort,"","--saveShort").maxargs(1).absent(0).metavar("N")
+            .help("Enable saving system configurations every N-th MC step. \
+                The same as --save, but write only configuration of spins in a single \
+                txt file, relative to the initial configuration.\
+                Default value is 0 means do not save the data.\
+                File name is \"<input filename>_<temperature_number>.txt\"");
         params.add_parameter(binder,"","--binder")
             .help("if set, calculate fourth-order cumulants for \
                 all parameters (energy, magnetisation, etc.).");

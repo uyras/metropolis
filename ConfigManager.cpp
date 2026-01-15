@@ -107,6 +107,7 @@ ConfigManager ConfigManager::init(
 
     
     tmp.saveStates = commandLineParameters.saveStates;
+    tmp.saveShort = commandLineParameters.saveShort;
     tmp.saveStateFileBasename = tmp.sysfile.substr(0, tmp.sysfile.find_last_of("."));
 
     for (auto & sect: iniconfig){

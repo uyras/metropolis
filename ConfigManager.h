@@ -55,7 +55,13 @@ public:
     double getRestartThreshold() const {return this->restartThreshold; }
     std::string getNewGSFilename() {return this->newGSFilename; }
     inline unsigned getSaveStates() { return this->saveStates; }
-    std::string getSaveStateFileName(int temperature, int step){ return this->saveStateFileBasename+"_"+std::to_string(temperature)+"_"+std::to_string(step)+".mfsys"; }
+    inline unsigned getSaveShort() { return this->saveShort; }
+    std::string getSaveStateFileName(int temperature, int step){ 
+        return this->saveStateFileBasename+"_"+std::to_string(temperature)+"_"+std::to_string(step)+".mfsys"; 
+    }
+    std::string getSaveShortFileName(int temperature){ 
+        return this->saveStateFileBasename+"_"+std::to_string(temperature)+".txt"; 
+    }
 
     bool debug = false;
     int threadCount=0;
@@ -80,6 +86,7 @@ private:
     bool restart = true;
     double restartThreshold = 1e-6;
     unsigned saveStates = 0;
+    unsigned saveShort = 0;
     std::string saveStateFileBasename;
     std::string newGSFilename;
     std::vector<std::unique_ptr< CalculationParameter > > parameters;
