@@ -148,6 +148,7 @@ ConfigManager::ConfigManager(int argc, char *argv[])
     this->system = make_shared<MagneticSystem>(this->sysfile,range,size,ham);
     
     this->saveStates = commandLineParameters->saveStates;
+    this->saveShort = commandLineParameters->saveShort;
     this->saveStateFileBasename = this->sysfile.substr(0, this->sysfile.find_last_of("."));
 
     /***** тут перечисляем список вычисляемых параметров, чтобы их распарсили из ini-файла */

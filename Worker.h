@@ -26,6 +26,7 @@ private:
     state_t state;
     default_random_engine generator;
     bool _previousCalculateStatistics;
+    ofstream saveShortFile;
 
     chrono::steady_clock::time_point _startTimePoint;
     void _startTimer();

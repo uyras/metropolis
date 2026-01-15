@@ -76,6 +76,14 @@ optional< pair<double,state_t> > Worker::work(unsigned steps, bool calculateStat
         for (auto &cp : calculationParameters){
             cp->init(state); // attach the system and calculate the init value
         }
+
+        if (config->getSaveShort()){
+            this->saveShortFile.open(config->getSaveShortFileName(_num));
+            this->saveShortFile<<"# t = "<<temperature.t<<endl;
+            this->saveShortFile<<"# states below are after "<<config->getHeatup()<<" heatup MC steps"<<endl;
+            this->saveShortFile<<"# legend (0 - non-switched spin, 1 - switched): "<<endl;
+            this->saveShortFile<<"# <step>\t<configuration>"<<endl;
+        }
     }
 
     bool isFoundLowest = false; // нашлась или нет более низкая энергия
@@ -200,6 +208,9 @@ optional< pair<double,state_t> > Worker::work(unsigned steps, bool calculateStat
                 if (config->getSaveStates()>0 && (stepsMade+step) % config->getSaveStates() == 0){
                     sys.save( config->getSaveStateFileName(_num,step), state );
                 }
+                if (config->getSaveShort()>0 && (stepsMade+step) % config->getSaveShort() == 0){
+                    this->saveShortFile<<step<<"\t"<<stateToString(state)<<endl;
+                }
             }
 
             if (calculateStatistics) this->stepsAcceptedCalculate += double(acceptedCount) / config->N(); 
@@ -210,6 +221,10 @@ optional< pair<double,state_t> > Worker::work(unsigned steps, bool calculateStat
     if (calculateStatistics) this->stepsMadeCalculate += steps; else this->stepsMadeDummy += steps;
     _previousCalculateStatistics = calculateStatistics;
     _stopTimer();
+
+    if (config->getSaveShort() && this->saveShortFile.is_open()){
+        this->saveShortFile.close();
+    }
 
     if (isFoundLowest) return make_pair(lowestEnergy,lowestState); else return nullopt;
 }
