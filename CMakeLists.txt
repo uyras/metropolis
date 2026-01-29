@@ -2,6 +2,9 @@ cmake_minimum_required(VERSION 3.9)
 
 project(metropolis VERSION 0.1.0)
 
+
+option( BUILD_TESTS      "Build tests"    OFF )
+
 set (CMAKE_CXX_STANDARD 17)
 
 set( ARGUMENTUM_BUILD_STATIC_LIBS ON INTERNAL )
@@ -43,3 +46,7 @@ target_link_libraries(distanceAnalyser argumentum)
 
 add_executable(groundStater groundStater.cpp)
 target_link_libraries(groundStater argumentum)
+if( BUILD_TESTS )
+   enable_testing()
+   add_subdirectory( tests )
+endif()
