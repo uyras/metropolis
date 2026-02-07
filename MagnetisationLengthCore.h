@@ -6,23 +6,25 @@
 #include <map>
 #include <gmpxx.h>
 #include <cstdint>
-#include "PartArray.h"
 #include "CalculationParameter.h"
+#include "misc.h"
 
 class MagnetisationLengthCore: public CalculationParameter
 {
 
 public:
+    MagnetisationLengthCore(
+        const config_section_t &sect,
+        const ConfigManager *conf);
 
-    MagnetisationLengthCore(const std::string & parameterId,
-        PartArray * prototype,
-        const std::vector<uint64_t> & spins);
+    static string name(){ return "magnetisationlength"; }
+
 
     virtual bool check(unsigned) const;
-    virtual void printHeader(unsigned) const;
-    virtual bool init(PartArray * sys);
+    virtual void printHeader() const;
+    virtual void init(const state_t &state);
 
-    virtual void iterate(unsigned id);
+    virtual void iterate(size_t id);
     virtual void incrementTotal();
     virtual mpf_class getTotal(unsigned steps){ return this->mv / steps; }
     virtual mpf_class getTotal2(unsigned steps){ return this->mv2 / steps; }
@@ -30,12 +32,18 @@ public:
     virtual MagnetisationLengthCore * copy() { return new MagnetisationLengthCore(*this); }
 
 private:
-    Vect method(unsigned spinId) const;
+    Vect method(unsigned spinId, signed char spinState) const;
 
-    double getFullTotal(Vect & val) const;
+    Vect getFullTotal(const state_t &_state) const;
 
-    std::vector<uint64_t> spins;
+    std::vector<size_t> spins;
+    state_t enabledSpins;
 
+    /**
+     * @brief В этой переменной сохраняется текущее состояние системы, 
+     * для которой актуально значение mOld.  
+     */
+    state_t currentState;
     Vect mOld;
     mpf_class mv;
     mpf_class mv2;

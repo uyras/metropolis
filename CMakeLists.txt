@@ -20,7 +20,7 @@ set(METROPOLIS_SRC
 	CorrelationCore.cpp 
 #	CorrelationPointCore.cpp 
 	MagnetisationCore.cpp
-#	MagnetisationLengthCore.cpp
+	MagnetisationLengthCore.cpp
 	misc.cpp
 	PtBalancerFactory.cpp
 	PtBalancerManual.cpp

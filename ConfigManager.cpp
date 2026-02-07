@@ -149,6 +149,7 @@ ConfigManager::ConfigManager(int argc, char *argv[])
     // @TODO переделать так, чтобы классы регистрировались отдельно (паттерн Factory),
     // а тут создавались в порядке соответствующем ini-файлу
     registerCalculationParameter<MagnetisationCore>(iniconfig, {"axis"});
+    registerCalculationParameter<MagnetisationLengthCore>(iniconfig, {});
     registerCalculationParameter<CorrelationCore>(iniconfig, {"method"});
 
 /*

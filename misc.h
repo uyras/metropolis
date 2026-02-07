@@ -65,7 +65,35 @@ struct Vect{
     double x;
     double y;
     double z;
+
+    inline double length() const {
+        return sqrt(
+            this->x * this->x + 
+            this->y * this->y +
+            this->z * this->z
+        );
+    }
+
+    inline Vect& operator+=(const Vect& other) {
+        this->x += other.x;
+        this->y += other.y;
+        this->z += other.z;
+        return *this;
+    }
+
+    Vect operator*(double val) const {
+        return { (this->x * val), (y * val), (z * val)};
+    }
+
+    friend ostream &operator<<(ostream & os, const Vect& p) {
+        os<<"("<<p.x<<";"<<p.y<<";"<<p.z<<")";
+        return os;
+    }
 };
+
+inline Vect operator-(const Vect& a, const Vect& b) {
+    return {a.x-b.x, a.y-b.y, a.z-b.z};
+}
 
 struct Part{
     Vect p;

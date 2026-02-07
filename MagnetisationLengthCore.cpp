@@ -1,20 +1,28 @@
 #include "MagnetisationLengthCore.h"
 
-MagnetisationLengthCore::MagnetisationLengthCore(const std::string & parameterId, 
-    PartArray * prototype,
-    const std::vector<uint64_t> & spins):
-CalculationParameter(parameterId,prototype),
-spins(spins),
+MagnetisationLengthCore::MagnetisationLengthCore(
+        const config_section_t &sect,
+        const ConfigManager *conf):
+CalculationParameter(sect,conf),
 mv(0,1024*8),
 mv2(0,2048*8),
-mOld(0,0,0)
+currentState(sys->N(),1),
+enabledSpins(sys->N(),0)
 {
+    // получаем параметры из ini-конфига
+    if (sect.data.contains("spins"))
+        this->spins = sect.data["spins"].get_list<inicpp::unsigned_ini_t>();
+
     if (this->spins.size() == 0) {
-        this->spins.resize(this->prototype->size(),0);
-        for (uint64_t i=0; i<this->prototype->size(); ++i) this->spins[i]=i;
+        this->spins.resize(this->sys->N(),0);
+        for (size_t i=0; i<this->sys->N(); ++i) 
+            this->spins[i]=i;
     }
 
-    this->prototypeInit(prototype);
+    for (auto spinId: spins){
+        enabledSpins[spinId] = 1;
+    }
+
 }
 
 bool MagnetisationLengthCore::check(unsigned N) const
@@ -22,28 +30,16 @@ bool MagnetisationLengthCore::check(unsigned N) const
     return true;
 }
 
-void MagnetisationLengthCore::printHeader(unsigned num) const
+void MagnetisationLengthCore::printHeader() const
 {
-    // get saturation magnetisation
-    /*double saturation=0;
-    for (auto s : this->spins){
-        saturation += fabs(this->prototype->parts[s]->m.scalar(this->vector));
-    }
-    saturation /= this->spins.size();*/
-
-
-    printf("##### calculation param #%d #####\n",num);
-
-    printf("# type: magnetisation length\n");
+    printf("# type: %s\n", MagnetisationLengthCore::name().c_str());
 
     printf("# id: %s\n",this->parameterId().c_str());
 
-    Vect tmp;
-    printf("# initial value %f\n",
-        this->getFullTotal(tmp)/this->spins.size());
-    //printf("# saturation magnetisation / N: %f\n", saturation);
+    printf("# initial value %g\n",
+        this->getFullTotal(state_t(sys->N(),1)).length() / double(this->spins.size()) );
     printf("# spins: ");
-    if (this->spins.size()==this->prototype->size()){
+    if (this->spins.size()==this->sys->N()){
         printf("All\n");
     } else {
         printf("%lu",this->spins[0]);
@@ -57,41 +53,40 @@ void MagnetisationLengthCore::printHeader(unsigned num) const
     return;
 }
 
-bool MagnetisationLengthCore::init(PartArray * sys)
-{  
-    this->sys = sys;
-
-    getFullTotal(this->mOld);
-
-    return true;
+void MagnetisationLengthCore::init(const state_t &state)
+{
+    this->currentState = state;
+    this->mOld = getFullTotal(state);
+    return;
 }
 
-void MagnetisationLengthCore::iterate(unsigned id){
-    this->mOld += this->method(id)*2;
-    if (_debug){
-        Vect tmp;
-        this->getFullTotal(tmp);
-        if ((tmp - this->mOld).length()>0.001) 
-            cerr<<"# (dbg MagnetisationLengthCore#"<<this->parameterId()<<") total vecto is different: iterative="<<this->mOld<<", full="<<tmp<<endl;
+void MagnetisationLengthCore::iterate(size_t id){
+    this->currentState[id] = -this->currentState[id];
+    this->mOld += this->method(id,this->currentState[id]) * 2;
+    if (this->isDebug()){
+        Vect res = this->getFullTotal(this->currentState);
+        if ((res - this->mOld).length()>0.01) 
+            cerr<<"# (dbg MagnetisationLengthCore#"<<this->parameterId()<<") total value is different: iterative="<<this->mOld<<", full="<<res<<endl;
     }
 }
 
 void MagnetisationLengthCore::incrementTotal(){
-    double addVal = this->mOld.length() / this->spins.size();
+    double addVal = this->mOld.length()  / this->spins.size();
+    
     this->mv += addVal;
     this->mv2 += addVal*addVal;
 }
 
-double MagnetisationLengthCore::getFullTotal(Vect & val) const
+Vect MagnetisationLengthCore::getFullTotal(const state_t &_state) const
 {
-    val.setXYZ(0,0,0);
+    Vect res = {0};
     for (auto spinId: spins){
-        val += this->method(spinId);
+        res += this->method(spinId, _state[spinId]);
     }
-    return val.length();
+    return res;
 }
 
-Vect MagnetisationLengthCore::method(unsigned spinId) const
+Vect MagnetisationLengthCore::method(unsigned spinId, signed char spinState) const
 {
-        return sys->parts[spinId]->m;
+        return sys->parts[spinId].m * spinState;
 }
