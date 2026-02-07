@@ -35,8 +35,9 @@ public:
     /**
      * @brief Создает новый объект с вычисляемым параметром
      * 
-     * @param parameterId id параметра. Обязателен для всех параметров.
-     * @param prototype Прототип магнитной системы. Пока не понятно нафиг нужен
+     * @param config_section_t Секция с конфигурацией, которую нужно распарсить
+     * @param conf Указатель на объект - конфигуратор. В нем хранится 
+     * экземпляр магнитной системы, и её основные настройки
      */
     CalculationParameter(const config_section_t &sect, const ConfigManager *conf);
         

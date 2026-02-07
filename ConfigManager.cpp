@@ -146,6 +146,9 @@ ConfigManager::ConfigManager(int argc, char *argv[])
     this->saveStateFileBasename = this->sysfile.substr(0, this->sysfile.find_last_of("."));
 
     /***** тут перечисляем список вычисляемых параметров, чтобы их распарсили из ini-файла */
+    // @TODO переделать так, чтобы классы регистрировались отдельно (паттерн Factory),
+    // а тут создавались в порядке соответствующем ini-файлу
+    registerCalculationParameter<MagnetisationCore>(iniconfig, {"axis"});
     registerCalculationParameter<CorrelationCore>(iniconfig, {"method"});
 
 /*

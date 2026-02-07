@@ -15,7 +15,7 @@
 #include "CalculationParameter.h"
 #include "CorrelationCore.h"
 //#include "CorrelationPointCore.h"
-//#include "MagnetisationCore.h"
+#include "MagnetisationCore.h"
 //#include "MagnetisationLengthCore.h"
 #include "misc.h"
 #include "Hamiltonians.h"

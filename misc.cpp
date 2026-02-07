@@ -134,3 +134,9 @@ double scalar(const Vect &a, const Vect &b)
 {
     return (a.x * b.x) + (a.y * b.y) + (a.z * b.z);
 }
+
+Vect makeUnit(const Vect &a)
+{
+    double l = sqrt(a.x*a.x+a.y*a.y+a.z*a.z);
+    return {a.x/l,a.y/l,a.z/l};
+}

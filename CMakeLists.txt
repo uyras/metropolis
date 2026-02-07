@@ -19,7 +19,7 @@ set(METROPOLIS_SRC
 	CalculationParameter.cpp
 	CorrelationCore.cpp 
 #	CorrelationPointCore.cpp 
-#	MagnetisationCore.cpp
+	MagnetisationCore.cpp
 #	MagnetisationLengthCore.cpp
 	misc.cpp
 	PtBalancerFactory.cpp

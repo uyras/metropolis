@@ -117,4 +117,12 @@ double distance_2(const Vect &a, const Vect &b);
 
 double scalar(const Vect &a, const Vect &b);
 
+/**
+ * @brief Возвращает вектор единичной длины
+ * 
+ * @param a Оригинальный вектор
+ * @return Vect Вектор единичной длины
+ */
+Vect makeUnit(const Vect &a);
+
 #endif

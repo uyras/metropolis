@@ -7,39 +7,43 @@
 #include <gmpxx.h>
 #include <cstdint>
 #include "CalculationParameter.h"
+#include "misc.h"
 
 class MagnetisationCore: public CalculationParameter
 {
 
 public:
+    MagnetisationCore(
+        const config_section_t &sect,
+        const ConfigManager *conf);
 
-    MagnetisationCore(const std::string & parameterId,
-        shared_ptr<MagneticSystem> prototype,
-        const Vect & vector, 
-        const std::vector<size_t> & spins);
+    static string name(){ return "magnetisation"; }
+
 
     virtual bool check(unsigned) const;
-    virtual void printHeader(unsigned) const;
-    virtual bool init(state_t state);
+    virtual void printHeader() const;
+    virtual void init(const state_t &state);
 
-    virtual void iterate(unsigned id);
+    virtual void iterate(size_t id);
     virtual void incrementTotal();
     virtual mpf_class getTotal(unsigned steps){ return this->mv / steps; }
     virtual mpf_class getTotal2(unsigned steps){ return this->mv2 / steps; }
 
     virtual MagnetisationCore * copy() { return new MagnetisationCore(*this); }
 
-    void setModule(bool module);
-
 private:
-    double method(unsigned spinId, const PartArray * _sys) const;
+    double method(unsigned spinId, signed char spinState) const;
 
-    double getFullTotal(const PartArray * _sys) const;
+    double getFullTotal(const state_t &_state) const;
 
     Vect vector;
     std::vector<size_t> spins;
     std::vector< double > magnetisationValues;
 
+    /**
+     * @brief В этой переменной сохраняется текущее состояние системы, для которой актуально значение cpOld.  
+     */
+    state_t currentState;
     double mOld;
     mpf_class mv;
     mpf_class mv2;

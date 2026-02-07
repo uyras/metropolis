@@ -1,24 +1,40 @@
 #include "MagnetisationCore.h"
 
-MagnetisationCore::MagnetisationCore(const std::string & parameterId, 
-    PartArray * prototype,
-    const Vect & vector, 
-    const std::vector<uint64_t> & spins):
-CalculationParameter(parameterId,prototype),
-vector(vector),
-spins(spins),
+MagnetisationCore::MagnetisationCore(
+        const config_section_t &sect,
+        const ConfigManager *conf):
+CalculationParameter(sect,conf),
 mv(0,1024*8),
 mv2(0,2048*8),
-mOld(0),
+currentState(sys->N(),1),
+magnetisationValues(sys->N(),0),
 _sumModule(false)
 {
-    if (this->spins.size() == 0) {
-        this->spins.resize(this->prototype->size(),0);
-        for (uint64_t i=0; i<this->prototype->size(); ++i) this->spins[i]=i;
-    }
-    this->vector.setUnitary();
+    // получаем параметры из ini-конфига
+    if (sect.data.contains("spins"))
+        this->spins = sect.data["spins"].get_list<inicpp::unsigned_ini_t>();
 
-    this->prototypeInit(prototype);
+    if (this->spins.size() == 0) {
+        this->spins.resize(this->sys->N(),0);
+        for (size_t i=0; i<this->sys->N(); ++i) 
+            this->spins[i]=i;
+    }
+
+
+    if (sect.data.contains("module"))
+        this->_sumModule = sect.data["module"].get<inicpp::boolean_ini_t>();
+
+
+
+    if (!sect.data.contains("axis"))
+        throw(std::string("Parameter 'axis' is required in section "+sect.data.get_name()));
+    std::string tmp_axis = sect.data["axis"].get<inicpp::string_ini_t>();
+    this->vector = makeUnit(strToVect(tmp_axis));
+
+    for (auto spinId: spins){
+        magnetisationValues[spinId] = scalar(sys->parts[spinId].m, vector);        
+    }
+
 }
 
 bool MagnetisationCore::check(unsigned N) const
@@ -26,22 +42,19 @@ bool MagnetisationCore::check(unsigned N) const
     return true;
 }
 
-void MagnetisationCore::printHeader(unsigned num) const
+void MagnetisationCore::printHeader() const
 {
     // get saturation magnetisation
     double saturation=0;
     for (auto s : this->spins){
-        saturation += fabs(this->prototype->parts[s]->m.scalar(this->vector));
+        saturation += fabs(scalar(this->sys->parts[s].m, this->vector));
     }
     saturation /= this->spins.size();
 
-
-    printf("##### calculation param #%d #####\n",num);
-
     if (this->_sumModule)
-        printf("# type: magnetisation module\n");
+        printf("# type: %s module\n", MagnetisationCore::name().c_str());
     else
-        printf("# type: magnetisation\n");
+        printf("# type: %s\n", MagnetisationCore::name().c_str());
 
     printf("# id: %s\n",this->parameterId().c_str());
 
@@ -49,10 +62,10 @@ void MagnetisationCore::printHeader(unsigned num) const
         this->vector.x,
         this->vector.y,
         this->vector.z,
-        this->getFullTotal(this->prototype)/this->spins.size());
+        this->getFullTotal(state_t(sys->N(),1)) / double(this->spins.size()) );
     printf("# saturation magnetisation / N: %g\n", saturation);
     printf("# spins: ");
-    if (this->spins.size()==this->prototype->size()){
+    if (this->spins.size()==this->sys->N()){
         printf("All\n");
     } else {
         printf("%lu",this->spins[0]);
@@ -66,32 +79,18 @@ void MagnetisationCore::printHeader(unsigned num) const
     return;
 }
 
-bool MagnetisationCore::init(state_t state)
+void MagnetisationCore::init(const state_t &state)
 {
-
-    //clear
-    magnetisationValues.clear();
-    
-    this->sys = sys;
-    magnetisationValues.resize(sys->size(),0);
-
-    for (auto spinId: spins){
-        Part* part = sys->parts[spinId];
-        magnetisationValues[spinId] = part->m.scalar(vector);
-        if (part->state)
-            magnetisationValues[spinId] *= -1;
-        
-    }
-
-    this->mOld = getFullTotal(this->sys);
-
-    return true;
+    this->currentState = state;
+    this->mOld = getFullTotal(state);
+    return;
 }
 
-void MagnetisationCore::iterate(unsigned id){
-    this->mOld += 2*this->method(id,this->sys);
-    if (_debug){
-        double res = this->getFullTotal(this->sys);
+void MagnetisationCore::iterate(size_t id){
+    this->currentState[id] = -this->currentState[id];
+    this->mOld += 2*this->method(id,this->currentState[id]);
+    if (this->isDebug()){
+        double res = this->getFullTotal(this->currentState);
         if (fabs(res-this->mOld)>0.01) 
             cerr<<"# (dbg MagnetisationCore#"<<this->parameterId()<<") total value is different: iterative="<<this->mOld<<", full="<<res<<endl;
     }
@@ -106,21 +105,16 @@ void MagnetisationCore::incrementTotal(){
     this->mv2 += addVal*addVal;
 }
 
-double MagnetisationCore::getFullTotal(const PartArray * _sys) const
+double MagnetisationCore::getFullTotal(const state_t &_state) const
 {
     double res = 0;
     for (auto spinId: spins){
-        res += this->method(spinId, _sys);
+        res += this->method(spinId, _state[spinId]);
     }
     return res;
 }
 
-double MagnetisationCore::method(unsigned spinId, const PartArray * _sys) const
+double MagnetisationCore::method(unsigned spinId, signed char spinState) const
 {
-        return magnetisationValues[spinId]*((_sys->parts[spinId]->state)?-1:+1);
-}
-
-void MagnetisationCore::setModule(bool module)
-{
-    this->_sumModule = module;
+        return magnetisationValues[spinId] * spinState;
 }

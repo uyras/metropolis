@@ -149,9 +149,11 @@ optional< pair<double,state_t> > Worker::work(unsigned steps, bool calculateStat
                 state[swapNum] *= -1;
                 eActual += dE;
 
-                for (auto &cp : calculationParameters)
-                {
-                    cp->iterate(swapNum);
+                if (calculateStatistics) {
+                    for (auto &cp : calculationParameters)
+                    {
+                        cp->iterate(swapNum);
+                    }
                 }
 
                 if (config->debug)
@@ -217,13 +219,13 @@ void Worker::printout(temp_t temperature)
 
     mpf_class cT = (ee2 - (ee * ee)) / (temperature.t * temperature.t * config->N());
 
-    gmp_printf("%e %.30Fe %.30Fe %.30Fe %d %d",
+    gmp_printf("%e %.10Fe %.10Fe %.10Fe %d %d",
             temperature.t, cT.get_mpf_t(), ee.get_mpf_t(), ee2.get_mpf_t(),
             omp_get_thread_num(), _seed);
 
     for (auto &cp : calculationParameters)
     {
-        gmp_printf(" %.30Fe %.30Fe",
+        gmp_printf(" %.10Fe %.10Fe",
                 cp->getTotal(config->getCalculate()).get_mpf_t(),
                 cp->getTotal2(config->getCalculate()).get_mpf_t());
     }
