@@ -8,6 +8,8 @@
 #include "misc.h"
 #include "MagneticSystem.h"
 
+// @TODO проверить почему добавление debug=0 в параметр все равно включает дебаг
+
 class ConfigManager; //защита от cross-include
 
 /**

@@ -18,7 +18,7 @@ set(METROPOLIS_SRC
 	ConfigManager.cpp
 	CalculationParameter.cpp
 	CorrelationCore.cpp 
-#	CorrelationPointCore.cpp 
+	CorrelationPointCore.cpp 
 	MagnetisationCore.cpp
 	MagnetisationLengthCore.cpp
 	misc.cpp
@@ -26,6 +26,7 @@ set(METROPOLIS_SRC
 	PtBalancerManual.cpp
 	Worker.cpp
 	MagneticSystem.cpp
+	dos2.cpp
 )
 
 file(STRINGS examples/example.ini example_string_a)

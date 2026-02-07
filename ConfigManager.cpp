@@ -151,6 +151,7 @@ ConfigManager::ConfigManager(int argc, char *argv[])
     registerCalculationParameter<MagnetisationCore>(iniconfig, {"axis"});
     registerCalculationParameter<MagnetisationLengthCore>(iniconfig, {});
     registerCalculationParameter<CorrelationCore>(iniconfig, {"method"});
+    registerCalculationParameter<CorrelationPointCore>(iniconfig, {"method"});
 
 /*
     for (auto & sect: iniconfig){

@@ -5,33 +5,50 @@
 #include <string>
 #include <map>
 #include <gmpxx.h>
-#include "PartArray.h"
+#include <forward_list>
 #include "CalculationParameter.h"
-#include <dos2.h>
+#include "misc.h"
+#include "Hamiltonians.h"
+#include "dos2.h"
 
 class CorrelationPointCore: public CalculationParameter
 {
 
 public:
-    std::vector< std::forward_list < Part* > > correlationPointSpins;
-    std::vector< std::forward_list < Part* > > correlationNeighbours;
-    std::vector< std::vector< std::forward_list < Part* > > > correlationNeighboursByPoint; //fills only when histogram enabled
+    /**
+     * @brief Список спинов, которые принадлежат каждой корреляционной точке
+     */
+    std::vector< std::forward_list < size_t > > correlationPointSpins;
+
+    /**
+     * @brief Список спинов-соседей для каждого спина 
+     * (@todo переделать, т.к. спин может принадлежать разным точкам и там будут разные соседи)
+     */
+    std::vector< std::forward_list < size_t > > correlationNeighbours;
+
+    /**
+     * @brief Список спинов-соседей для каждого спина, с привязкой к каждой точке
+     * Сперва идет нумерация по точкам, потом по спинам, и в конце перечисляются соседи
+     * (@todo переделать, т.к. по второму измерению очень большой массив получается)
+     */
+    std::vector< std::vector< std::forward_list < size_t > > > correlationNeighboursByPoint; //fills only when histogram enabled
     std::map< std::pair<unsigned, unsigned>, short > correlationValues;
     unsigned correlationPairsNum;
     float spinsInPoint;
 
     CorrelationPointCore(
-        const std::string & parameterId,
-        PartArray * prototype,
-        const std::vector<double> & X, 
-        const std::vector<double> & Y, 
-        double distance, double minRange, double maxRange);
+        const config_section_t &sect,
+        const ConfigManager *conf);
+
+    void findPointsArray();
+
+    static string name(){ return "correlationpoint"; }
 
     virtual bool check(unsigned N) const;
-    virtual void printHeader(unsigned) const;
-    virtual bool init(PartArray * sys);
+    virtual void printHeader() const;
+    virtual void init(const state_t &state);
 
-    virtual void iterate(unsigned id);
+    virtual void iterate(size_t id);
     virtual void incrementTotal();
     virtual mpf_class getTotal(unsigned steps){ return this->cp / steps; }
     virtual mpf_class getTotal2(unsigned steps){ return this->cp2 / steps; }
@@ -47,10 +64,10 @@ public:
 
 private:
 
-    long getFullTotal(const PartArray * _sys) const;
+    long getFullTotal(const state_t &_state) const;
     unsigned pointCount() const {return X.size();}
 
-    short method(const Part* partA, const Part* partB) const;
+    short method(const size_t idA, const size_t idB) const;
 
     double _minRange;
     double _maxRange;
@@ -60,6 +77,11 @@ private:
     mpf_class cp2;
     std::vector<double> X;
     std::vector<double> Y;
+
+    /**
+     * @brief В этой переменной сохраняется текущее состояние системы, для которой актуально значение cpOld.  
+     */
+    state_t currentState;
 
     bool _histogramEnabled;
     std::string _histogramFilename;
