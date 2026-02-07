@@ -25,9 +25,8 @@ currentState(sys->N(),1)
     _minRange = (sect.data.contains("minrange")) ? sect.data["minrange"].get<inicpp::float_ini_t>() : 0;
 
     
-    std::vector<uint64_t> spins;
     if (sect.data.contains("spins"))
-        spins = sect.data["spins"].get_list<inicpp::unsigned_ini_t>();
+        this->spins = sect.data["spins"].get_list<inicpp::unsigned_ini_t>();
     if (this->spins.size() == 0) {
         this->spins.resize(this->sys->N(),0);
         for (uint64_t i=0; i<this->sys->N(); ++i) this->spins[i]=i;
@@ -139,13 +138,14 @@ void CorrelationCore::printHeader() const
 
 void CorrelationCore::init(const state_t &state)
 {
-    currentState = state;
+    this->currentState = state;
     this->cpOld = this->getFullTotal(state);
     
     return;
 }
 
 void CorrelationCore::iterate(size_t id){
+    this->currentState[id] = - this->currentState[id];
     for (auto idB : this->correlationNeighbours[id]){
         this->cpOld += 2*this->method(id,idB);
     }
