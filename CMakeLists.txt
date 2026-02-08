@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.9)
 
-project(metropolis VERSION 0.1.0)
+project(metropolis VERSION 0.1.1)
 
 
 option( BUILD_TESTS      "Build tests"    OFF )
