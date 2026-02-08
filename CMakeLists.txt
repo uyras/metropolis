@@ -14,17 +14,16 @@ add_subdirectory(inicpp)
 
 find_package(OpenMP REQUIRED)
 
-include_directories("argumentum-src/include" "inicpp/include")
 
 set(METROPOLIS_SRC
 	main.cpp
-	ConfigManager.cpp
-	CalculationParameter.cpp
-	CorrelationCore.cpp 
-	CorrelationPointCore.cpp 
-	MagnetisationCore.cpp
-	MagnetisationLengthCore.cpp
 	misc.cpp
+	ConfigManager.cpp
+	caluclationParameters/CalculationParameter.cpp
+	caluclationParameters/CorrelationCore.cpp 
+	caluclationParameters/CorrelationPointCore.cpp 
+	caluclationParameters/MagnetisationCore.cpp
+	caluclationParameters/MagnetisationLengthCore.cpp
 	PtBalancerFactory.cpp
 	PtBalancerManual.cpp
 	Worker.cpp
@@ -46,6 +45,11 @@ target_link_libraries(distanceAnalyser argumentum)
 
 add_executable(groundStater groundStater.cpp)
 target_link_libraries(groundStater argumentum)
+
+target_include_directories(metropolis PUBLIC ${CMAKE_SOURCE_DIR}/argumentum-src/include PUBLIC ${CMAKE_SOURCE_DIR}/inicpp/include)
+target_include_directories(metropolis PRIVATE ${CMAKE_SOURCE_DIR}/caluclationParameters)
+include_directories(".")
+
 if( BUILD_TESTS )
    enable_testing()
    add_subdirectory( tests )
