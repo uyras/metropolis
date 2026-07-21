@@ -21,6 +21,7 @@
 #include "Hamiltonians.h"
 #include "PtBalancerFactory.h"
 #include "PtBalancerDefault.h"
+#include "ParameterFactory.h"
 
 
 
@@ -55,7 +56,7 @@ private:
      */
     std::vector< config_section_t > explode(const inicpp::section& origin, const vector<string>& params);
 
-    template<class C> size_t registerCalculationParameter(inicpp::config & conf, vector<string> explode_params);
+    void parseCalculationParameters(inicpp::config & conf);
 
 public:
     shared_ptr<MagneticSystem> system;

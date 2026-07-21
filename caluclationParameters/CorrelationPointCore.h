@@ -92,4 +92,7 @@ private:
     Dos2<int> dos;
 };
 
+
+REGISTER_PARAMETER(CorrelationPointCore, CorrelationPointCore::name(), {"method"})
+
 #endif //CORELLATIONPOINTCORE_H

@@ -25,8 +25,7 @@ std::vector<config_section_t> ConfigManager::explode(const inicpp::section& orig
     return list_to_explode; 
 }
 
-template <class C>
-inline size_t ConfigManager::registerCalculationParameter(inicpp::config & conf, vector<string> explode_params)
+void ConfigManager::parseCalculationParameters(inicpp::config & conf)
 {
     for (auto & sect: conf){
         const std::string parameterString = sect.get_name();
@@ -38,15 +37,14 @@ inline size_t ConfigManager::registerCalculationParameter(inicpp::config & conf,
         const std::string parameterName = parameterString.substr(0,colpos);
         const std::string parameterId = parameterString.substr(colpos+1);
 
-        if (parameterName == C::name()) {
-            std::vector< config_section_t > sections = explode(sect,explode_params);
-            for (auto &s : sections){
-                this->parameters.push_back(make_unique<C>(s,this));
-                this->parameters.back()->setBinder(this->isBinder());
-            }
+        const vector<string> & explode_params = ParameterFactory::instance().getExplodeList(parameterName);
+        std::vector< config_section_t > sections = explode(sect,explode_params);
+        for (auto &s : sections){
+            this->parameters.push_back(ParameterFactory::instance().createParameter(parameterName, s, this));
+            this->parameters.back()->setBinder(this->isBinder());
         }
     }
-    return 0;
+    return;
 }
 
 ConfigManager::ConfigManager(int argc, char *argv[])
@@ -151,146 +149,8 @@ ConfigManager::ConfigManager(int argc, char *argv[])
     this->saveShort = commandLineParameters->saveShort;
     this->saveStateFileBasename = this->sysfile.substr(0, this->sysfile.find_last_of("."));
 
-    /***** тут перечисляем список вычисляемых параметров, чтобы их распарсили из ini-файла */
-    // @TODO переделать так, чтобы классы регистрировались отдельно (паттерн Factory),
-    // а тут создавались в порядке соответствующем ini-файлу
-    registerCalculationParameter<MagnetisationCore>(iniconfig, {"axis"});
-    registerCalculationParameter<MagnetisationLengthCore>(iniconfig, {});
-    registerCalculationParameter<CorrelationCore>(iniconfig, {"method"});
-    registerCalculationParameter<CorrelationPointCore>(iniconfig, {"method"});
 
-/*
-    for (auto & sect: iniconfig){
-        const std::string parameterString = sect.get_name();
-
-        // все вычисляемые параметры должны иметь в имени секции символ двоеточие
-        std::size_t colpos=parameterString.find_first_of(':');
-        if (colpos==std::string::npos) continue;
-
-        const std::string parameterName = parameterString.substr(0,colpos);
-        const std::string parameterId = parameterString.substr(colpos+1);
-
-        bool setDebug = false;
-        if (sect.contains("debug") && sect["debug"].get<inicpp::boolean_ini_t>()==true)
-            setDebug = true;
-
-
-        if (parameterName == "correlation") {
-            std::vector< inicpp::section > sections = explode(sect,{"method"});
-
-            if (!sect.contains("method"))
-                throw(std::string("Parameter " + parameterString + " should have method field."));
-            const auto opt = sect["method"];
-
-            std::vector<uint64_t> spins;
-            if (sect.contains("spins"))
-                spins = sect["spins"].get_list<inicpp::unsigned_ini_t>();
-
-            std::string t_parameterId(parameterId);
-            bool is_list = opt.is_list();
-
-            int i=0;
-            for (auto & a : opt.get_list<inicpp::string_ini_t>()){
-                if (is_list) t_parameterId = parameterId+"_"+to_string(i);
-                std::unique_ptr<CorrelationCore> core = 
-                    make_unique<CorrelationCore>(t_parameterId,
-                        &this->system,
-                        sect["minrange"].get<inicpp::float_ini_t>(),
-                        sect["maxrange"].get<inicpp::float_ini_t>(),
-                        methods.at(a),
-                        spins);
-                
-                if (setDebug) core->setDebug();
-                core->setBinder(tmp.isBinder());
-
-                this->parameters.push_back(std::move(core));
-                ++i;
-            }
-
-
-        } else if (parameterName == "correlationpoint") {
-                std::vector<double> X,Y;
-
-                for (auto & a : sect["points"].get_list<inicpp::string_ini_t>()){
-                    Vect t = ConfigManager::strToVect(a);
-                    X.push_back(t.x);
-                    Y.push_back(t.y);
-                }
-
-                double minRange = 0;
-                if (sect.contains("minrange")) 
-                    minRange = sect["minrange"].get<inicpp::float_ini_t>();
-
-                std::unique_ptr<CorrelationPointCore> core = 
-                    make_unique<CorrelationPointCore>(parameterId,
-                        &this->system, X, Y,
-                        sect["distance"].get<inicpp::float_ini_t>(),
-                        minRange,
-                        sect["maxrange"].get<inicpp::float_ini_t>());
-                //core._methodVar = m;
-                if (setDebug) core->setDebug();
-                core->setBinder(tmp.isBinder());
-
-                // if need to save the histogram to the file
-                if (sect.contains("histogram") && sect["histogram"].get<inicpp::boolean_ini_t>()==true){
-                    core->enableHistogram("histogram_"+parameterId+"_$.txt"); //replace dollar by number in time of saving
-                }
-
-                this->parameters.push_back(std::move(core));
-
-        } else if (parameterName == "magnetisation") {
-            int i=0;
-
-            std::vector<uint64_t> spins;
-            if (sect.contains("spins"))
-                spins = sect["spins"].get_list<inicpp::unsigned_ini_t>();
-
-            bool setModule = false;;
-            if (sect.contains("module"))
-                setModule = sect["module"].get<inicpp::boolean_ini_t>();
-
-
-            std::string t_parameterId(parameterId);
-            bool is_list = sect["axis"].is_list();
-
-            for (auto & a : sect["axis"].get_list<inicpp::string_ini_t>()){
-                if (is_list) t_parameterId = parameterId+"_"+to_string(i);
-
-                std::unique_ptr<MagnetisationCore> core = 
-                    make_unique<MagnetisationCore>(t_parameterId,
-                        &this->system,
-                        ConfigManager::strToVect(a),
-                        spins);
-
-                if (setDebug) core->setDebug();
-                if (setModule) core->setModule(true);
-                core->setBinder(tmp.isBinder());
-
-                this->parameters.push_back(std::move(core));
-                ++i;
-            }
-        } else if (parameterName == "magnetisationlength") {
-
-            std::vector<uint64_t> spins;
-            if (sect.contains("spins"))
-                spins = sect["spins"].get_list<inicpp::unsigned_ini_t>();
-
-            std::unique_ptr<MagnetisationLengthCore> core = 
-                make_unique<MagnetisationLengthCore>(parameterId,
-                    &this->system,
-                    spins);
-
-            if (setDebug) core->setDebug();
-            core->setBinder(tmp.isBinder());
-
-            this->parameters.push_back(std::move(core));
-
-        } else {
-            throw(std::string("Parameter " + parameterName + " is unknown"));
-        }
-    }
-*/
-
+    parseCalculationParameters(iniconfig);
 
 
     //obtain the avaliable number of threads

@@ -51,4 +51,7 @@ private:
     mpf_class mv4;
 };
 
+
+REGISTER_PARAMETER(MagnetisationLengthCore, MagnetisationLengthCore::name(), {})
+
 #endif //MAGNETISATIONLENGTHCORE_H

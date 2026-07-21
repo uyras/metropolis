@@ -85,4 +85,7 @@ private:
     }
 };
 
+// регистрируем его, чтобы работало определение при считывании ini-файла.
+REGISTER_PARAMETER(CorrelationCore, CorrelationCore::name(), {"method"})
+
 #endif //CORELLATIONCORE_H

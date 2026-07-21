@@ -53,3 +53,5 @@ private:
 };
 
 #endif //MAGNETISATIONCORE_H
+
+REGISTER_PARAMETER(MagnetisationCore, MagnetisationCore::name(), {"axis"})

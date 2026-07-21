@@ -7,6 +7,7 @@
 #include <inicpp/inicpp.h>
 #include "misc.h"
 #include "MagneticSystem.h"
+#include "ParameterFactory.h"
 
 // @TODO проверить почему добавление debug=0 в параметр все равно включает дебаг
 
@@ -86,5 +87,23 @@ private:
     bool _debug;
     bool _binder;
 };
+
+// Единый макрос для регистрации пользовательских параметров
+#define REGISTER_PARAMETER(CLASS_NAME, STRING_NAME, EXPLODE_LIST) \
+    namespace { \
+        struct CLASS_NAME##_Registrar { \
+            CLASS_NAME##_Registrar() { \
+                ParameterFactory::instance().registerParameter( \
+                    STRING_NAME, \
+                    [](const config_section_t& sect, const ConfigManager* conf) \
+                        -> std::unique_ptr<CalculationParameter> { \
+                        return std::make_unique<CLASS_NAME>(sect, conf); \
+                    }, \
+                    EXPLODE_LIST \
+                ); \
+            } \
+        }; \
+        static CLASS_NAME##_Registrar global_##CLASS_NAME##_registrar; \
+    }
 
 #endif //CALCULATIONPARAMETER_H
